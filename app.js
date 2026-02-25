@@ -3,7 +3,7 @@ import ReactDOM from "https://esm.sh/react-dom/client"; // Use /client for React
 
 import { reducer, getStoredState, TYPES } from 'https://codepen.io/micropresident/pen/jEMOMMJ.js';
 
- function TaskApp() {
+ export default function TaskApp() {
   // Initialize useReducer with the data found in LocalStorage
   const [state, dispatch] = useReducer(reducer, getStoredState());
   const [text, setText] = useState("");
@@ -54,8 +54,8 @@ import { reducer, getStoredState, TYPES } from 'https://codepen.io/micropresiden
 
 const metricsStyle = { display: 'flex', justifyContent: 'space-between', background: '#eee', padding: '10px', marginBottom: '10px' };
 
-// At the bottom of app.js
-const rootElement = document.getElementById("root");
-const root = ReactDOM.createRoot(rootElement);
+// // At the bottom of app.js
+// const rootElement = document.getElementById("root");
+// const root = ReactDOM.createRoot(rootElement);
 
-root.render(<TaskApp />);
+// root.render(<TaskApp />);
