@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import TaskApp from './app.js'; // This is your file with useReducer
+import TaskApp from './app.jsx'; // This is your file with useReducer
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

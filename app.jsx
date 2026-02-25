@@ -1,7 +1,7 @@
-import React, { useReducer, useState, useEffect } from 'https://esm.sh/react';
-import ReactDOM from "https://esm.sh/react-dom/client"; // Use /client for React 18+
+import React, { useReducer, useState, useEffect } from 'react';
+import ReactDOM from "react-dom/client"; // Use /client for React 18+
 
-import { reducer, getStoredState, TYPES } from 'https://codepen.io/micropresident/pen/jEMOMMJ.js';
+import { reducer, getStoredState, TYPES } from './reducer.jsx';
 
  export default function TaskApp() {
   // Initialize useReducer with the data found in LocalStorage
