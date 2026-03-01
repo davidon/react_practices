@@ -1,0 +1,5 @@
+* Codespace Dev URL: In Github Code (https://vigilant-funicular-5vwpg97vpgf7566.github.dev/), under terminal, `npm run dev` for live preview; private url: https://vigilant-funicular-5vwpg97vpgf7566-5173.app.github.dev/react_practices/
+
+* Github pages link (permanent): run `npm run deploy`; https://davidon.github.io/react_practices/
+
+* Vercel link (permanent): https://reactpractices-smoky.vercel.app/ (automatic build after push)
