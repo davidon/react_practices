@@ -1,6 +1,3 @@
-import React, { useReducer, useState, useEffect } from 'react';
-import ReactDOM from "react-dom/client"; // Use /client for React 18+
-
 import { reducer, getStoredState, TYPES } from './reducer.jsx';
 
  export default function TaskApp() {
