@@ -1,12 +1,14 @@
 <!DOCTYPE html>
-<html lang="en" class="dark-mode">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <title>useContext Hook with Multiple Providers</title>
     <style>
-      html.light-mode, html.light-mode body { background: #ffffff; color: #111111; }
-      html.dark-mode, html.dark-mode body { background: #111111; color: #ffffff; }
-      .layout { padding: 1rem; }
+      #root.light-mode, #root.light-mode * { background: #ffffff; color: #111111; }
+      #root.dark-mode, #root.dark-mode * { background: #111111; color: #ffffff; }
+      body { display: flex; align-items: flex-start; justify-content: center; min-height: 100vh; margin: 0; padding-top: 2rem; }
+      #root { display: inline-block; }
+      .layout { padding: 1rem; border: 2px solid currentColor; }
       .layout .layout-header, .layout .layout-content, .layout .layout-footer { max-width: 900px; margin: 0 auto; }
       .post-item { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 8px 0; }
       button { cursor: pointer; }

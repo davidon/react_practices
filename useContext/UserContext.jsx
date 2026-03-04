@@ -17,17 +17,18 @@ export function UserProvider({ children }) {
     }));
   };
 
-  // Apply the current theme as a class on the document root so
-  // the entire page (outside component tree) reflects the theme.
+  // Apply the current theme as a class on the React root element
+  // so only the app area (with text) reflects the theme.
   useEffect(() => {
-    const root = document.documentElement;
-    // remove any previous theme classes we might have added
-    root.classList.remove('light-mode', 'dark-mode');
-    root.classList.add(`${user.theme}-mode`);
-
-    return () => {
+    const root = document.getElementById('root');
+    if (root) {
       root.classList.remove('light-mode', 'dark-mode');
-    };
+      root.classList.add(`${user.theme}-mode`);
+
+      return () => {
+        root.classList.remove('light-mode', 'dark-mode');
+      };
+    }
   }, [user.theme]);
 
   // We pass an object as the 'value'
