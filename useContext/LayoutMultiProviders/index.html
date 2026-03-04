@@ -1,9 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark-mode">
   <head>
     <meta charset="UTF-8" />
     <title>useContext Hook with Multiple Providers</title>
-  </head>
+    <style>
+      html.light-mode, html.light-mode body { background: #ffffff; color: #111111; }
+      html.dark-mode, html.dark-mode body { background: #111111; color: #ffffff; }
+      .layout { padding: 1rem; }
+      .layout .layout-header, .layout .layout-content, .layout .layout-footer { max-width: 900px; margin: 0 auto; }
+      .post-item { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 8px 0; }
+      button { cursor: pointer; }
+    </style>
   <body>
     <div id="root"></div>
 
