@@ -1,8 +1,9 @@
 import { useUser } from '../UserContext.jsx';
 import { usePosts } from '../PostContext.jsx';
+import ThemeButton from '../ThemeButton.jsx';
 
 function Layout() {
-  const { user, toggleTheme } = useUser();
+  const { user } = useUser();
   const { posts, addPost, likePost } = usePosts();
 
   return (
@@ -10,12 +11,7 @@ function Layout() {
       {/* Header Section */}
       <header className="layout-header">
         <h1>Welcome, {user.name}!</h1>
-        <div className="header-controls">
-          <p>Current Theme: <strong>{user.theme}</strong></p>
-          <button onClick={toggleTheme}>
-            Switch to {user.theme === 'dark' ? 'Light' : 'Dark'} Mode
-          </button>
-        </div>
+        <ThemeButton />
       </header>
 
       {/* Main Content Section */}
