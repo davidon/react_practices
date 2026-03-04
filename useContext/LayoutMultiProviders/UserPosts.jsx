@@ -1,8 +1,8 @@
 import { useUser } from '../UserContext.jsx';
-import { usePosts } from '../PostContext.jsx';
+import { usePosts } from './PostContext.jsx';
 import ThemeButton from '../ThemeButton.jsx';
 
-function Layout() {
+function UserPosts() {
   const { user } = useUser();
   const { posts, addPost, likePost } = usePosts();
 
@@ -59,4 +59,4 @@ function Layout() {
   );
 }
 
-export default Layout;
+export default UserPosts;
