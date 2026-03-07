@@ -1,4 +1,5 @@
-import { useUser, useApp } from './UserContext.jsx';
+import { useUser } from './UserContext.jsx';
+import { useApp } from './AppContext.jsx';
 
 /**
  * UserInfo — displays detailed user information.

@@ -1,4 +1,7 @@
-import { AppProvider, ThemeProvider, UserProvider, USERS } from '../UserContext.jsx';
+import { AppProvider } from '../AppContext.jsx';
+import { ThemeProvider } from '../ThemeContext.jsx';
+import { UserProvider } from '../UserContext.jsx';
+import { USERS } from '../users.js';
 import { PostProvider } from './PostContext.jsx';
 import UserPosts from './UserPosts.jsx';
 

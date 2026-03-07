@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { AppProvider, USERS, ThemeProvider, UserProvider, useApp } from './UserContext.jsx';
+import { AppProvider, useApp } from './AppContext.jsx';
+import { ThemeProvider } from './ThemeContext.jsx';
+import { UserProvider } from './UserContext.jsx';
+import { USERS } from './users.js';
 import UserCard from './UserCard.jsx';
 
 /**

@@ -1,4 +1,6 @@
-import { useUser, useApp, useTheme, themeStyles } from './UserContext.jsx';
+import { useUser } from './UserContext.jsx';
+import { useApp } from './AppContext.jsx';
+import { useTheme, themeStyles } from './ThemeContext.jsx';
 
 /**
  * PostItem — the MOST DEEPLY NESTED component in the tree.

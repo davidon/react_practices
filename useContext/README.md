@@ -20,11 +20,12 @@ A comprehensive React `useContext` demo featuring **multiple nested contexts**, 
   - [Cross-Context Data Access (Inner → Outer)](#cross-context-data-access-inner--outer)
   - [Live Company Announcements](#live-company-announcements)
 - [Key Technical Concepts](#key-technical-concepts)
-  - [createContext + Custom Hook + Error Boundary Pattern](#1-createcontext--custom-hook--error-boundary-pattern)
-  - [Multiple Instances of the Same Context](#2-multiple-instances-of-the-same-context)
-  - [useMemo / useCallback for Context Value Stability](#3-usememo--usecallback-for-context-value-stability)
-  - [Innermost Component Consuming Outermost Context](#4-innermost-component-consuming-outermost-context)
-  - [Provider Composition (Nesting Order Matters)](#5-provider-composition-nesting-order-matters)
+  - [Separate File Per Context (Best Practice)](#1-separate-file-per-context-best-practice)
+  - [createContext + Custom Hook + Error Boundary Pattern](#2-createcontext--custom-hook--error-boundary-pattern)
+  - [Multiple Instances of the Same Context](#3-multiple-instances-of-the-same-context)
+  - [useMemo / useCallback for Context Value Stability](#4-usememo--usecallback-for-context-value-stability)
+  - [Innermost Component Consuming Outermost Context](#5-innermost-component-consuming-outermost-context)
+  - [Provider Composition (Nesting Order Matters)](#6-provider-composition-nesting-order-matters)
 - [How to Run](#how-to-run)
 
 ---
@@ -37,13 +38,15 @@ This project demonstrates how React's `useContext` hook solves **prop-drilling**
 
 | Concept | Where demonstrated |
 |---|---|
-| `createContext` + Provider pattern | `UserContext.jsx` — three separate contexts |
+| `createContext` + Provider pattern | `AppContext.jsx`, `ThemeContext.jsx`, `UserContext.jsx` — one file per context |
+| Separate file per context | Each context has its own file with provider + hook + helpers |
 | Custom hooks with error guard | `useApp()`, `useTheme()`, `useUser()` |
 | Multiple context providers (nested) | `App.jsx` — `AppProvider > ThemeProvider > UserProvider` |
 | Same context type, multiple instances | Each user card gets its **own** `ThemeProvider` |
-| `useMemo` / `useCallback` for perf | `UserContext.jsx` — stabilised context values |
+| `useMemo` / `useCallback` for perf | `AppContext.jsx`, `ThemeContext.jsx` — stabilised context values |
 | Innermost → outermost data access | `PostItem` calls `useApp()` to read company data |
 | Live state shared across tree | Announcements added at top level appear in every post |
+| Data separated from context | `users.js` — pure JS, no React dependency |
 
 ---
 
@@ -85,7 +88,10 @@ This project demonstrates how React's `useContext` hook solves **prop-drilling**
 |---|---|
 | `index.html` | HTML entry point with `<div id="root">` |
 | `main.jsx` | React 18 `createRoot` bootstrap |
-| `UserContext.jsx` | All three contexts, providers, custom hooks, user data, theme styles |
+| `AppContext.jsx` | **AppContext** — company-wide provider, `useApp()` hook, announcements state |
+| `ThemeContext.jsx` | **ThemeContext** — per-user theme provider, `useTheme()` hook, `themeStyles` map |
+| `UserContext.jsx` | **UserContext** — per-user data provider, `useUser()` hook; re-exports from other contexts for backward compat |
+| `users.js` | Static `USERS` data array — pure JS, no React dependency |
 | `App.jsx` | Root component — wires providers together; `AnnouncementManager` |
 | `UserCard.jsx` | Per-user card container — applies theme styling |
 | `UserInfo.jsx` | Displays user details (full name, team, title, company) |
@@ -146,7 +152,7 @@ Returns the user object directly:
 
 ### Multi-User Display
 
-Three users are rendered side-by-side, each as an independent `UserCard`. User data is defined in the `USERS` array in `UserContext.jsx` and passed via `<UserProvider user={user}>`.
+Three users are rendered side-by-side, each as an independent `UserCard`. User data is defined in the `USERS` array in `users.js` and passed via `<UserProvider user={user}>`.
 
 **Users:**
 
@@ -199,7 +205,51 @@ Every `PostItem` across all three user cards shows a **📌 pinned** banner with
 
 ## Key Technical Concepts
 
-### 1. createContext + Custom Hook + Error Boundary Pattern
+### 1. Separate File Per Context (Best Practice)
+
+**Before** (monolithic):
+```
+UserContext.jsx          ← 195 lines: AppContext + ThemeContext + UserContext + USERS data
+```
+
+**After** (one file per concern):
+```
+AppContext.jsx            ← company-wide context only
+ThemeContext.jsx           ← theme context + themeStyles only
+UserContext.jsx            ← user context only + re-exports for backward compat
+users.js                   ← static data, zero React imports
+```
+
+#### Why separate files?
+
+| # | Benefit | Explanation |
+|---|---|---|
+| 1 | **Single Responsibility** | Each file does exactly one thing. `AppContext.jsx` owns company state; `ThemeContext.jsx` owns theme state. |
+| 2 | **Clear dependency graph** | `import { useTheme } from './ThemeContext.jsx'` tells you exactly where the hook lives. No hunting through a 200-line file. |
+| 3 | **Smaller diffs** | Changing theme logic won't appear in AppContext's git history. Code reviews stay focused. |
+| 4 | **Independent testability** | Mock `ThemeContext` in tests without pulling in `AppContext` or user data. |
+| 5 | **Tree-shaking** | Bundlers can drop unused context files entirely. A component importing only `useTheme` never loads `AppContext`. |
+| 6 | **Scalability** | Adding a 4th context (e.g., `NotificationContext`) means adding one file, not growing an already-large file. |
+| 7 | **Data ≠ context** | `users.js` has zero React imports. It can be used in tests, CLI scripts, or SSR without importing React. |
+
+#### Import pattern
+
+Consumer files import directly from the context file that owns the export:
+
+```jsx
+// ✅ Direct imports — clear, greppable, tree-shakeable
+import { useApp } from './AppContext.jsx';
+import { useTheme, themeStyles } from './ThemeContext.jsx';
+import { useUser } from './UserContext.jsx';
+import { USERS } from './users.js';
+
+// ❌ Barrel re-export (avoid in new code)
+import { useApp, useTheme, useUser, USERS } from './UserContext.jsx';
+```
+
+> `UserContext.jsx` still re-exports everything for backward compatibility, but new code should always import from the specific source file.
+
+### 2. createContext + Custom Hook + Error Boundary Pattern
 
 ```jsx
 const MyContext = createContext(undefined);     // undefined as sentinel
@@ -215,7 +265,7 @@ export function useMyContext() {
 
 **Why `undefined` as default?** It lets the custom hook distinguish between "no provider above me" (bug) vs "provider gave me a falsy value" (valid). This pattern is used for all three contexts: `useApp()`, `useTheme()`, `useUser()`.
 
-### 2. Multiple Instances of the Same Context
+### 3. Multiple Instances of the Same Context
 
 ```jsx
 {USERS.map((user) => (
@@ -229,7 +279,7 @@ export function useMyContext() {
 
 React resolves `useContext(ThemeContext)` by walking **up** the component tree and returning the value from the **nearest** matching Provider. By wrapping each user card in its own `<ThemeProvider>`, each card gets independent theme state — even though they all use the same `ThemeContext` object.
 
-### 3. useMemo / useCallback for Context Value Stability
+### 4. useMemo / useCallback for Context Value Stability
 
 ```jsx
 const addAnnouncement = useCallback(
@@ -246,7 +296,7 @@ const value = useMemo(() => ({
 
 **Why this matters:** Without `useMemo`, the `value` object is a new reference on every render, causing **all consumers** to re-render even if nothing changed. `useCallback` stabilises function references so they don't invalidate the `useMemo` dependency array.
 
-### 4. Innermost Component Consuming Outermost Context
+### 5. Innermost Component Consuming Outermost Context
 
 `PostItem` sits 6 levels deep but calls `useApp()` to read `companyName`, `fiscalQuarter`, and `announcements` directly from the outermost `AppProvider`. No intermediate component (`UserCard`, `UserPosts`, `UserInfo`) needs to receive or forward this data.
 
@@ -257,7 +307,7 @@ const value = useMemo(() => ({
 - **Locale / i18n** strings accessed by the smallest UI atoms
 - **Current user session / permissions** checked before rendering action buttons
 
-### 5. Provider Composition (Nesting Order Matters)
+### 6. Provider Composition (Nesting Order Matters)
 
 ```
 <AppProvider>              ← available to everything

@@ -1,4 +1,6 @@
-import { useUser, useTheme, useApp, themeStyles } from '../UserContext.jsx';
+import { useUser } from '../UserContext.jsx';
+import { useTheme, themeStyles } from '../ThemeContext.jsx';
+import { useApp } from '../AppContext.jsx';
 import { usePosts } from './PostContext.jsx';
 import ThemeButton from '../ThemeButton.jsx';
 

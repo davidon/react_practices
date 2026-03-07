@@ -1,4 +1,4 @@
-import { useTheme, themeStyles } from './UserContext.jsx';
+import { useTheme, themeStyles } from './ThemeContext.jsx';
 import UserInfo from './UserInfo.jsx';
 import UserPosts from './UserPosts.jsx';
 import ThemeButton from './ThemeButton.jsx';
