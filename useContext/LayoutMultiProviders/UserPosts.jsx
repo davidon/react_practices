@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useUser } from '../UserContext.jsx';
 import { useTheme, themeStyles } from '../ThemeContext.jsx';
 import { useApp } from '../AppContext.jsx';
@@ -13,15 +14,28 @@ import ThemeButton from '../ThemeButton.jsx';
  *   • useApp()   → company-wide    (AppContext)
  *   • usePosts() → post data       (PostContext — local to LayoutMultiProviders)
  *
- * KEY: useUser() returns the user object directly (not wrapped in {user}).
+ * Includes a "Create new post" form. addPost(title) only needs the title —
+ * the author is auto-tagged by PostProvider from UserContext (user.shortName).
+ * Posts are persisted to IndexedDB automatically by PostProvider.
  */
 function UserPosts() {
-  // useUser() returns the user object directly — no destructuring needed
   const user = useUser();
   const { theme } = useTheme();
   const { companyName } = useApp();
-  const { posts, likePost } = usePosts();
+  // addPost is now used — it auto-tags the author from UserContext
+  const { posts, addPost, likePost } = usePosts();
   const styles = themeStyles[theme];
+
+  // Local state for the "new post" input
+  const [draft, setDraft] = useState('');
+
+  const handleAddPost = () => {
+    const trimmed = draft.trim();
+    if (trimmed) {
+      addPost(trimmed);   // only title needed — author auto-tagged by PostProvider
+      setDraft('');
+    }
+  };
 
   return (
     <div style={{ ...styles, padding: '1rem', border: '2px solid currentColor', transition: 'background 0.3s, color 0.3s' }}>
@@ -44,6 +58,45 @@ function UserPosts() {
             <p><strong>Title:</strong> {user.title}</p>
             <p><strong>Theme:</strong> {theme}</p>
             <p><strong>Total Posts:</strong> {posts.length}</p>
+          </div>
+        </section>
+
+        {/* Create New Post Section */}
+        <section className="new-post-section" style={{ margin: '16px 0' }}>
+          <h2>Create a New Post</h2>
+          <p style={{ fontSize: 12, opacity: 0.6, margin: '2px 0 8px' }}>
+            Author will be auto-tagged as <strong>{user.shortName}</strong> (from UserContext)
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Post title…"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddPost()}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                borderRadius: 4,
+                border: '1px solid #999',
+                fontSize: 14,
+                background: 'transparent',
+                color: 'inherit',
+              }}
+            />
+            <button
+              onClick={handleAddPost}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 4,
+                border: '1px solid #999',
+                cursor: 'pointer',
+                fontSize: 14,
+                background: '#4a90d9',
+                color: '#fff',
+              }}
+            >
+              Add Post
+            </button>
           </div>
         </section>
 
@@ -74,7 +127,7 @@ function UserPosts() {
 
       {/* Footer Section */}
       <footer className="layout-footer" style={{ marginTop: '1rem', opacity: 0.6, fontSize: 13 }}>
-        <p>&copy; 2024 Multi-Context App. Using AppContext, ThemeContext, UserContext, and PostContext.</p>
+        <p>&copy; 2024 Multi-Context App. Posts persisted to IndexedDB.</p>
       </footer>
     </div>
   );

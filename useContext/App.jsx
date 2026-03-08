@@ -8,14 +8,59 @@ import UserCard from './UserCard.jsx';
 /**
  * App — root component.
  *
- * KEY CONCEPT: Provider nesting order matters.
- *   AppProvider (outermost) → available to EVERYTHING inside.
- *   ThemeProvider (per-user) → one instance per user card, so themes are independent.
- *   UserProvider  (per-user) → scopes user data to that card's subtree.
+ * ═══════════════════════════════════════════════════════════════════════
+ * HOW TO VERIFY PROVIDER ORDER IS CORRECT
+ * ═══════════════════════════════════════════════════════════════════════
  *
- * Because React context resolves by walking UP to the NEAREST matching
- * Provider, each UserCard's useTheme() hits its own ThemeProvider while
- * useApp() keeps walking up to the single AppProvider at the top.
+ * 1. ERROR GUARD IN CUSTOM HOOKS (already in place)
+ *    Each custom hook throws if called outside its provider:
+ *      useApp()  → "useApp must be used within an AppProvider"
+ *      useTheme() → "useTheme must be used within a ThemeProvider"
+ *      useUser() → "useUser must be used within a UserProvider"
+ *
+ *    If you accidentally nest providers in the wrong order — e.g.,
+ *    put <UserProvider> outside <AppProvider> — and a child calls
+ *    useApp(), it will throw immediately with a clear message.
+ *    This is your FIRST line of defense: the `undefined` sentinel
+ *    pattern catches missing providers at render time.
+ *
+ * 2. RULE OF THUMB: outer providers must NOT depend on inner ones.
+ *    Ask: "Does Provider A's VALUE need data from Provider B?"
+ *      • If yes → Provider B must wrap Provider A (B is outer).
+ *      • If no  → order doesn't matter between them.
+ *
+ *    In this app:
+ *      AppProvider   → needs nothing         → outermost ✅
+ *      ThemeProvider → calls useApp() to read defaultTheme
+ *                    → AppProvider MUST be above it ✅ (and it is)
+ *      UserProvider  → calls useTheme() to persist per-user theme to localStorage
+ *                    → ThemeProvider MUST be above it ✅ (and it is)
+ *
+ *    Full dependency chain:
+ *      AppProvider → ThemeProvider → UserProvider
+ *      Each inner provider depends on the one above it.
+ *
+ *    Since ThemeProvider calls useApp() and UserProvider calls useTheme(),
+ *    swapping any two would break the dependency and throw at render time.
+ *
+ * 3. CONSUMER TEST: the deepest component tells you the correct order.
+ *    PostItem calls useApp() + useTheme() + useUser(). All three
+ *    providers must be ANCESTORS of PostItem. If PostItem renders
+ *    without errors, the order is correct.
+ *
+ * 4. DEV-ONLY RENDER LOGGING (optional):
+ *    In development, you can add console.log inside each Provider
+ *    to confirm mount order:
+ *      AppProvider:   "AppProvider mounted"
+ *      ThemeProvider: "ThemeProvider mounted"
+ *      UserProvider:  "UserProvider mounted"
+ *    React renders parent before children, so the log order
+ *    confirms the nesting order.
+ *
+ * 5. REACT DEVTOOLS:
+ *    Open Components tab → expand the tree → visually confirm:
+ *      AppProvider > ThemeProvider > UserProvider > UserCard > ...
+ * ═══════════════════════════════════════════════════════════════════════
  */
 export default function App() {
   return (
@@ -28,8 +73,10 @@ export default function App() {
 
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {USERS.map((user) => (
-            /* Each user gets its OWN ThemeProvider → independent themes */
-            <ThemeProvider key={user.id}>
+            /* Each user gets its OWN ThemeProvider → independent themes
+             * userId is passed so ThemeProvider can read/write localStorage
+             * with a per-user key (e.g., "theme_user_1") */
+            <ThemeProvider key={user.id} userId={user.id}>
               <UserProvider user={user}>
                 <UserCard />
               </UserProvider>

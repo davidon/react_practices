@@ -1,38 +1,69 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect, useMemo } from 'react';
+import { useTheme } from './ThemeContext.jsx';
 
 // ═══════════════════════════════════════════════════════════════════════
 // PER-USER DATA CONTEXT
 // ═══════════════════════════════════════════════════════════════════════
-// Wraps a single user object so child components (UserInfo, UserPosts,
-// PostItem) can call useUser() instead of receiving user as a prop.
 //
-// BEST PRACTICE — SEPARATE FILE PER CONTEXT:
-//   Previously this file held AppContext + ThemeContext + UserContext +
-//   USERS data — 195 lines doing four unrelated things. Now each context
-//   is in its own file:
-//     • AppContext.jsx   → company-wide state & hooks
-//     • ThemeContext.jsx  → per-user theme state, styles & hooks
-//     • UserContext.jsx   → per-user data provider & hook (this file)
-//     • users.js          → static data (no React dependency)
+// INTER-PROVIDER DEPENDENCY:
+//   UserProvider calls useTheme() to read the current theme and persist
+//   the user's theme preference to localStorage. This means ThemeProvider
+//   MUST be an ancestor of UserProvider in the component tree — otherwise
+//   useTheme() would throw.
 //
-//   Benefits:
-//     1. Single Responsibility — each file does exactly one thing
-//     2. Smaller diffs — changing theme logic won't appear in AppContext's
-//        git history
-//     3. Easier testing — mock one context without touching others
-//     4. Clear imports — `import { useTheme } from './ThemeContext.jsx'`
-//        tells you exactly where the hook lives
-//     5. Scalability — adding a 4th context means adding a file, not
-//        growing an already-large file
+//   Full dependency chain:
+//     AppProvider (outermost)  ← ThemeProvider calls useApp()
+//       → ThemeProvider        ← UserProvider calls useTheme()
+//         → UserProvider
 //
-// KEY: The value is the user object directly (not wrapped in {user}).
-//   This keeps the consumer API clean:  const user = useUser();
+//   Each inner provider depends on the one above it. Swapping any two
+//   would break the dependency and throw at render time.
+//
 // ═══════════════════════════════════════════════════════════════════════
 const UserContext = createContext(undefined);
 
+// UserProvider now enriches the user object with theme
+// and persists theme preferences to localStorage.
+//
+// WHY useMemo IS NEEDED HERE:
+//   Previously, UserProvider passed the `user` prop directly as the
+//   context value — a stable reference, so no useMemo needed.
+//   Now it creates a NEW object { ...user, currentTheme } each render,
+//   so useMemo is required to avoid unnecessary consumer re-renders.
 export function UserProvider({ user, children }) {
+  // ── REAL INTER-PROVIDER DEPENDENCY: ThemeContext ───────────────────
+  // UserProvider calls useTheme() to read the current user card's theme.
+  // This REQUIRES ThemeProvider to be an ancestor in the tree.
+  // If you move UserProvider outside ThemeProvider, this line throws:
+  //   "useTheme must be used within a ThemeProvider"
+  //
+  // What happens at this line:
+  //   1. useTheme() calls useContext(ThemeContext)
+  //   2. React walks UP from UserProvider looking for <ThemeContext.Provider>
+  //   3. If ThemeProvider is an ancestor → returns { theme, cycleTheme, … }
+  //   4. If ThemeProvider is NOT an ancestor → useContext returns `undefined`
+  //      → useTheme()'s guard throws
+  // ──────────────────────────────────────────────────────────────────
+  const { theme } = useTheme();
+
+  // `theme` (read above) is used for TWO things:
+  //
+  //   1. PERSIST to localStorage — so the preference survives page refresh.
+  //      On next load, ThemeProvider reads it back (see ThemeContext.jsx).
+  useEffect(() => {
+    localStorage.setItem(`theme_user_${user.id}`, theme);
+  }, [user.id, theme]);
+
+  //   2. ENRICH the user context value — attach `currentTheme` to the user
+  //      object so any consumer can read user.currentTheme via useUser()
+  //      without also needing to call useTheme() separately.
+  const value = useMemo(
+    () => ({ ...user, currentTheme: theme }),
+    [user, theme]
+  );
+
   return (
-    <UserContext.Provider value={user}>{children}</UserContext.Provider>
+    <UserContext.Provider value={value}>{children}</UserContext.Provider>
   );
 }
 
@@ -44,14 +75,4 @@ export function useUser() {
   return ctx;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// RE-EXPORTS  (backward compatibility)
-// ═══════════════════════════════════════════════════════════════════════
-// Existing consumer files import everything from './UserContext.jsx'.
-// These re-exports let those imports keep working while each context
-// now lives in its own file. New code should import directly from the
-// specific context file (e.g., import { useTheme } from './ThemeContext.jsx').
-// ═══════════════════════════════════════════════════════════════════════
-export { AppProvider, useApp } from './AppContext.jsx';
-export { ThemeProvider, useTheme, themeStyles } from './ThemeContext.jsx';
-export { USERS } from './users.js';
+

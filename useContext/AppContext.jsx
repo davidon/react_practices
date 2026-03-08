@@ -47,6 +47,10 @@ export function AppProvider({ children }) {
   const value = useMemo(() => ({
     companyName: 'Acme Corp',
     fiscalQuarter: 'Q1 2026',
+    // Company-wide default theme — used by ThemeProvider to initialise each
+    // card's theme. This creates a REAL dependency: ThemeProvider calls
+    // useApp() internally, so AppProvider MUST be an ancestor of ThemeProvider.
+    defaultTheme: 'dark',
     announcements,
     addAnnouncement,
     removeAnnouncement,
@@ -61,8 +65,18 @@ export function AppProvider({ children }) {
 //   - The undefined check gives a clear error message during development
 //     if a component is rendered outside the required Provider.
 export function useApp() {
+  // useContext(AppContext) resolution:
+  //   1. React walks UP the component tree looking for <AppContext.Provider>
+  //   2. If found → returns the Provider's `value` prop (the memoised object)
+  //   3. If NOT found → returns the DEFAULT passed to createContext() on line 21,
+  //      which is `undefined`
+  //
+  // That's why the guard below works: `undefined` means "no AppProvider above me".
   const ctx = useContext(AppContext);
   if (ctx === undefined) {
+    // This fires when ThemeProvider (or any consumer) is rendered
+    // OUTSIDE <AppProvider>. The error message tells the developer
+    // exactly which provider is missing and where to add it.
     throw new Error('useApp must be used within an AppProvider');
   }
   return ctx;
