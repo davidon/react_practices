@@ -140,7 +140,7 @@ Swapping any two providers crashes at render time with a clear error message (e.
 | Provider | Calls | Reads | Purpose |
 |---|---|---|---|
 | `AppProvider` | nothing | — | Root — provides company config |
-| `ThemeProvider` | `useApp()` | `defaultTheme` | Initialises theme from company config |
+| `ThemeProvider` | `useApp()` | `defaultTheme` | Initialises theme from AppContext's defaultTheme |
 | `UserProvider` | `useTheme()` | `theme` | Persists theme to localStorage, enriches user with `currentTheme` |
 | `PostProvider` | `useUser()` | `shortName` | Auto-tags new posts with the author |
 
@@ -152,13 +152,13 @@ Swapping any two providers crashes at render time with a clear error message (e.
 |---|---|
 | `index.html` | HTML entry point with `<div id="root">` |
 | `main.jsx` | React 18 `createRoot` bootstrap |
-| `AppContext.jsx` | **AppContext** — company-wide provider, `useApp()` hook, `defaultTheme`, announcements state |
+| `AppContext.jsx` | **AppContext** — app-level provider, `useApp()` hook, `defaultTheme`, announcements state |
 | `ThemeContext.jsx` | **ThemeContext** — per-user theme provider (calls `useApp()`), `useTheme()` hook, localStorage read, `themeStyles` map |
 | `UserContext.jsx` | **UserContext** — per-user data provider (calls `useTheme()`), `useUser()` hook, localStorage write, enriches user with `currentTheme` |
 | `users.js` | Static `USERS` data array — pure JS, no React dependency |
 | `App.jsx` | Root component — wires providers together; `AnnouncementManager` |
 | `UserCard.jsx` | Per-user card container — applies theme styling |
-| `UserInfo.jsx` | Displays user details (full name, team, title, company) |
+| `UserInfo.jsx` | Displays user details (fullName, team, title, companyName) |
 | `ThemeButton.jsx` | Three-button theme switcher (dark / light / grey) |
 | `UserPosts.jsx` | Post list + `PostItem` (innermost component consuming all contexts) |
 | `LayoutMultiProviders/App.jsx` | 4-layer provider nesting demo with annotated dependency chain |
@@ -182,7 +182,7 @@ Swapping any two providers crashes at render time with a clear error message (e.
 | `companyName` | `string` | Organisation name displayed in user info & posts |
 | `fiscalQuarter` | `string` | Current fiscal quarter shown on every post |
 | `defaultTheme` | `'dark' \| 'light' \| 'grey'` | Company-wide default theme — read by ThemeProvider on init |
-| `announcements` | `string[]` | Live list of company-wide announcements |
+| `announcements` | `string[]` | Live list of app-level announcements |
 | `addAnnouncement` | `(msg: string) => void` | Append a new announcement |
 | `removeAnnouncement` | `(index: number) => void` | Remove an announcement by index |
 
@@ -201,7 +201,7 @@ Swapping any two providers crashes at render time with a clear error message (e.
 
 **Key design:** Each user card wraps its children in a **separate** `<ThemeProvider>` instance. Because React context resolution walks **up** the tree and stops at the nearest provider, each card's `useTheme()` resolves to its own provider — making themes fully independent.
 
-**Inter-provider dependency:** ThemeProvider calls `useApp()` to read `defaultTheme` from company config. It also reads saved theme from `localStorage` on mount (key: `theme_user_<userId>`), falling back to `defaultTheme` if nothing is saved.
+**Inter-provider dependency:** ThemeProvider calls `useApp()` to read `defaultTheme` from AppContext. It also reads saved theme from `localStorage` on mount (key: `theme_user_<userId>`), falling back to `defaultTheme` if nothing is saved.
 
 ### UserContext (per-user)
 
@@ -269,7 +269,7 @@ This works because each card is wrapped in its own `<ThemeProvider>` instance. T
 
 ### Company-Wide Default Theme
 
-`AppContext` provides a `defaultTheme` field (currently `'dark'`). `ThemeProvider` calls `useApp()` to read it and uses it as the initial theme for all user cards — instead of a hardcoded value. To change the company default, update one field in `AppContext.jsx`.
+`AppContext` provides a `defaultTheme` field (currently `'dark'`). `ThemeProvider` calls `useApp()` to read it and uses it as the initial theme for all user cards — instead of a hardcoded value. To change the default, update one field in `AppContext.jsx`.
 
 ### Per-User Theme Persistence (localStorage)
 
@@ -320,7 +320,7 @@ Each user has 3 posts listed below their info. Every post displays:
 AppProvider → ThemeProvider → UserProvider → UserCard → UserPosts → PostItem
 ```
 
-Yet it directly accesses the outermost `AppContext` by simply calling `useApp()`. No intermediate component needs to know about or forward company data. This is the core value proposition of `useContext`.
+Yet it directly accesses the outermost `AppContext` by simply calling `useApp()`. No intermediate component needs to know about or forward AppContext data. This is the core value proposition of `useContext`.
 
 ### Live Company Announcements
 
@@ -427,7 +427,7 @@ export function useMyContext() {
 
 **Why `undefined` as default?** It lets the custom hook distinguish between "no provider above me" (bug) vs "provider gave me a falsy value" (valid). This pattern is used for all three contexts: `useApp()`, `useTheme()`, `useUser()`.
 
-### 4. Multiple Instances of the Same Context
+### Multiple Instances of the Same Context
 
 ```jsx
 {USERS.map((user) => (
@@ -477,15 +477,37 @@ Does the value INCLUDE FUNCTIONS defined inside this component?
 #### The pattern
 
 ```jsx
-// Step 1: Stabilise function references
+// Step 1: Stabilise function references with useCallback.
+//
+// useCallback deps should NOT always be empty. The rule:
+//   - If the function only uses setState's callback form (prev => ...)
+//     and no other changing values → [] is correct (same fn forever).
+//   - If the function reads a value that can change between renders
+//     (e.g., user.shortName) → that value MUST be in the deps array.
+//     Otherwise the function captures a stale value from the first render.
+
+// Example A: empty deps — function only uses setState callback form
+const likePost = useCallback((postId) => {
+  setPosts(prev =>
+    prev.map(p => p.id === postId ? { ...p, likes: p.likes + 1 } : p)
+  );
+}, []);                                      // [] → same fn forever ✅
+
+// Example B: non-empty deps — function reads user.shortName
 const addPost = useCallback((title) => {
-  setPosts(prev => [...prev, { title }]);
-}, []);                                      // empty deps → same fn forever
+  setPosts(prev => [...prev, {
+    id: Date.now(),
+    title,
+    author: user.shortName,                  // ← value from outer scope
+    likes: 0,
+  }]);
+}, [user.shortName]);                        // [user.shortName] → new fn when
+                                             // shortName changes ✅
 
 // Step 2: Memo the value object
 const value = useMemo(
-  () => ({ posts, addPost }),
-  [posts, addPost]                           // only re-creates when deps change
+  () => ({ posts, addPost, likePost }),
+  [posts, addPost, likePost]                 // only re-creates when deps change
 );
 
 // Step 3: Pass the memoised value
@@ -511,7 +533,7 @@ Object.is(oldValue, newValue) is true → consumers DO NOT re-render
 `PostItem` sits 6 levels deep but calls `useApp()` to read `companyName`, `fiscalQuarter`, and `announcements` directly from the outermost `AppProvider`. No intermediate component (`UserCard`, `UserPosts`, `UserInfo`) needs to receive or forward this data.
 
 **Practical business scenarios this pattern solves:**
-- Showing **org-wide branding** (company name, logo URL) in leaf components
+- Showing **org-wide branding** (companyName, logo URL) in leaf components
 - Displaying **environment badges** ("STAGING" / "PROD") in every widget
 - **Feature flags** checked deep inside form fields or table cells
 - **Locale / i18n** strings accessed by the smallest UI atoms
@@ -535,7 +557,7 @@ Providers must be ordered from most-global to most-specific. A component can onl
 A separate page at `/useContext/LayoutMultiProviders/index.html` that demonstrates all 4 providers nested together with a single user:
 
 ```
-<AppProvider>                        ← Layer 1: company config
+<AppProvider>                        ← Layer 1: app-level data (companyName, defaultTheme, announcements)
   <ThemeProvider userId={user.id}>   ← Layer 2: calls useApp() → defaultTheme
     <UserProvider user={user}>       ← Layer 3: calls useTheme() → localStorage
       <PostProvider>                 ← Layer 4: calls useUser() → auto-tag posts

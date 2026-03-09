@@ -6,7 +6,7 @@ import { useApp } from './AppContext.jsx';
  *
  * KEY CONCEPT: A single component consuming MULTIPLE contexts.
  *   - useUser()  → UserContext  (per-user data: name, team, title)
- *   - useApp()   → AppContext   (org-wide data: company name)
+ *   - useApp()   → AppContext   (app-level data: companyName)
  *
  * This component sits inside UserProvider → ThemeProvider → AppProvider,
  * but it skips ThemeContext entirely and reaches directly into both

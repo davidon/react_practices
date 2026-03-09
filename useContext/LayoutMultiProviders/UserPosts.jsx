@@ -11,7 +11,7 @@ import ThemeButton from '../ThemeButton.jsx';
  * Demonstrates consuming FOUR different contexts in a single component:
  *   • useUser()  → per-user data   (UserContext)
  *   • useTheme() → per-user theme  (ThemeContext)
- *   • useApp()   → company-wide    (AppContext)
+ *   • useApp()   → app-level data  (AppContext)
  *   • usePosts() → post data       (PostContext — local to LayoutMultiProviders)
  *
  * Includes a "Create new post" form. addPost(title) only needs the title —

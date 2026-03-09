@@ -35,36 +35,33 @@ export default function App() {
     <AppProvider>
 
       {/* LAYER 2 — ThemeProvider
-       *   Uses outer providers: YES — calls useApp() to read `defaultTheme`
-       *     from company config (AppContext). This is a REAL dependency:
-       *     AppProvider MUST be an ancestor, otherwise useApp() throws.
-       *     Moving <ThemeProvider> outside <AppProvider> would crash here.
        *   Provides: theme, cycleTheme, setSpecificTheme
-       *   Consumers that use it: UserPosts (useTheme → theme, themeStyles),
-       *                          ThemeButton (useTheme → setSpecificTheme) */}
+       *   Consumers: UserPosts (useTheme → theme), ThemeButton (useTheme → setSpecificTheme) */}
+      {/* ↑ ThemeProvider calls useApp() → reads defaultTheme
+       *   WHY THIS ORDER: ThemeProvider needs AppProvider's defaultTheme
+       *   to initialise the user card's theme. If ThemeProvider were
+       *   outside AppProvider, useApp() would throw. */}
       <ThemeProvider userId={user.id}>
 
         {/* LAYER 3 — UserProvider
-         *   Uses outer providers: YES — calls useTheme() to read the current
-         *     theme and persist per-user theme preference to localStorage.
-         *     This is a REAL dependency: ThemeProvider MUST be an ancestor,
-         *     otherwise useTheme() throws.
-         *     It also enriches the user object with `currentTheme` so
-         *     consumers can read user.currentTheme without calling useTheme().
          *   Provides: user object (fullName, shortName, team, title, posts, currentTheme)
-         *   Consumers that use it: UserPosts (useUser → fullName, shortName, team, title) */}
+         *   Consumers: UserPosts (useUser → fullName, shortName, team, title) */}
+        {/* ↑ UserProvider calls useTheme() → reads theme
+         *   WHY THIS ORDER: UserProvider needs ThemeProvider's theme
+         *   to persist it to localStorage and enrich the user object
+         *   with currentTheme. If UserProvider were outside ThemeProvider,
+         *   useTheme() would throw. */}
         <UserProvider user={user}>
           <div className="app-container">
 
             {/* LAYER 4 — PostProvider (innermost)
-             *   Uses outer providers: YES — calls useUser() to read the current
-             *     user's shortName and auto-tag every new post with the author.
-             *     This is a REAL dependency: UserProvider MUST be an ancestor,
-             *     otherwise useUser() throws.
-             *     Callers of addPost() only provide a title — the author is
-             *     filled in automatically from UserContext.
              *   Provides: posts, addPost, likePost
-             *   Consumers that use it: UserPosts (usePosts → posts, likePost) */}
+             *   Consumers: UserPosts (usePosts → posts, addPost, likePost) */}
+            {/* ↑ PostProvider calls useUser() → reads shortName, id
+             *   WHY THIS ORDER: PostProvider needs UserProvider's shortName
+             *   to auto-tag new posts with the author, and id for the
+             *   IndexedDB storage key. If PostProvider were outside
+             *   UserProvider, useUser() would throw. */}
             <PostProvider>
 
               {/* UserPosts is the CONSUMER — it calls ALL FOUR hooks:
@@ -75,7 +72,12 @@ export default function App() {
                *
                * Because all four providers are ancestors of UserPosts,
                * every hook resolves successfully. Removing or reordering
-               * any provider would cause the corresponding hook to throw. */}
+               * any provider would cause the corresponding hook to throw.
+               *
+               * UserPosts is RENDERED here, not "called".
+               *   <UserPosts /> is JSX syntax that tells React to render
+               *   the component. "Call" implies UserPosts() which bypasses
+               *   React's reconciliation. Always say "render" for JSX. */}
               <UserPosts />
 
             </PostProvider>

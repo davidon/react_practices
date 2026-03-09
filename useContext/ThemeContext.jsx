@@ -15,8 +15,8 @@ import { useApp } from './AppContext.jsx';
 //   ThemeContext object.
 //
 // INTER-PROVIDER DEPENDENCY:
-//   ThemeProvider calls useApp() to read `defaultTheme` from company
-//   config. This means AppProvider MUST be an ancestor of ThemeProvider
+//   ThemeProvider calls useApp() to read `defaultTheme` from AppContext.
+//   This means AppProvider MUST be an ancestor of ThemeProvider
 //   in the component tree — otherwise useApp() would throw.
 //   This is a real example of one provider depending on another.
 //
@@ -29,7 +29,7 @@ const THEMES = ['dark', 'light', 'grey'];
 
 export function ThemeProvider({ userId, children }) {
   // ── REAL INTER-PROVIDER DEPENDENCY #1: AppContext ─────────────────
-  // ThemeProvider calls useApp() to read the company-wide default theme.
+  // ThemeProvider calls useApp() to read AppContext's defaultTheme.
   //
   // What happens at this line:
   //   1. useApp() calls useContext(AppContext)
@@ -46,7 +46,7 @@ export function ThemeProvider({ userId, children }) {
   // ── localStorage READ (init only) ──────────────────────────────────
   // On mount, check if this user has a saved theme preference.
   // localStorage key format: "theme_user_<userId>" (e.g., "theme_user_1")
-  // Falls back to company defaultTheme if nothing is saved.
+  // Falls back to AppContext's defaultTheme if nothing is saved.
   //
   // The `userId` prop is passed from App.jsx so each user card gets
   // its own localStorage slot. Without it, all cards would share one key.
@@ -67,7 +67,7 @@ export function ThemeProvider({ userId, children }) {
         return saved;          // restore user's saved preference
       }
     }
-    return defaultTheme;       // fall back to company config
+    return defaultTheme;       // fall back to AppContext's defaultTheme
   });
 
 

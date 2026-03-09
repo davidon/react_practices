@@ -12,7 +12,7 @@ import { useTheme, themeStyles } from './ThemeContext.jsx';
  *   PostItem reaches across ALL context boundaries:
  *     • useUser()  → UserContext  (middle) — user's shortName
  *     • useTheme() → ThemeContext (middle) — per-card theme styling
- *     • useApp()   → AppContext  (OUTER)  — company name, fiscal quarter,
+ *     • useApp()   → AppContext  (OUTER)  — companyName, fiscalQuarter,
  *                                           live announcements
  *
  *   No intermediate component (UserCard, UserPosts) needs to know about
@@ -20,7 +20,7 @@ import { useTheme, themeStyles } from './ThemeContext.jsx';
  *   it eliminates prop-drilling across arbitrarily deep component trees.
  *
  * PRACTICAL BUSINESS USE-CASES this pattern solves:
- *   1. Org-wide branding (company name / logo) shown in leaf components
+ *   1. Org-wide branding (companyName, logo URL) shown in leaf components
  *   2. Fiscal/reporting period metadata on every data record
  *   3. Live announcements / system alerts displayed in-context
  *   4. Feature flags checked deep inside form fields or table cells

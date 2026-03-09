@@ -73,11 +73,46 @@ export default function App() {
 
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {USERS.map((user) => (
-            /* Each user gets its OWN ThemeProvider → independent themes
-             * userId is passed so ThemeProvider can read/write localStorage
-             * with a per-user key (e.g., "theme_user_1") */
+            /* Each user gets its OWN ThemeProvider → independent themes.
+             *
+             * key={user.id} — React's `key` prop, required on every element
+             *   rendered inside ANY loop (.map(), for, for...of, while, etc.).
+             *   React uses it to track which items changed/moved/were removed
+             *   between renders. Without `key`, React logs a console warning:
+             *     "Each child in a list should have a unique 'key' prop."
+             *
+             *   .map() is most common because it returns JSX directly, but
+             *   you'd also need `key` if you built an array with a for loop:
+             *     const cards = [];
+             *     for (const user of USERS) {
+             *       cards.push(<ThemeProvider key={user.id}>...</ThemeProvider>);
+             *     }
+             *     return <div>{cards}</div>;
+             *
+             *   `key` is ONLY needed inside lists (any loop that produces
+             *   multiple sibling elements). Components rendered once
+             *   (like <UserCard />, <AnnouncementManager />) don't need
+             *   `key` — there's no list to reconcile.
+             *
+             * userId={user.id} — a regular prop passed to ThemeProvider so
+             *   it can read/write localStorage with a per-user key
+             *   (e.g., localStorage key "theme_user_1").
+             *
+             * They look similar but serve completely different purposes:
+             *   key    → React internal, for list reconciliation, never accessible as props.key
+             *   userId → app logic, accessible inside ThemeProvider as props.userId */
             <ThemeProvider key={user.id} userId={user.id}>
+              {/* ↑ ThemeProvider calls useApp() → reads defaultTheme
+               *   WHY THIS ORDER: ThemeProvider needs AppProvider's defaultTheme
+               *   to initialise each user card's theme. If ThemeProvider were
+               *   outside AppProvider, useApp() would find no provider above it
+               *   and throw: "useApp must be used within an AppProvider" */}
               <UserProvider user={user}>
+                {/* ↑ UserProvider calls useTheme() → reads theme
+                 *   WHY THIS ORDER: UserProvider needs ThemeProvider's theme
+                 *   to persist it to localStorage and enrich the user object
+                 *   with currentTheme. If UserProvider were outside ThemeProvider,
+                 *   useTheme() would throw: "useTheme must be used within a ThemeProvider" */}
                 <UserCard />
               </UserProvider>
             </ThemeProvider>

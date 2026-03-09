@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useMemo, useCallback } from 'react
 // ═══════════════════════════════════════════════════════════════════════
 // APP-LEVEL CONTEXT (outermost)
 // ═══════════════════════════════════════════════════════════════════════
-// PURPOSE: Company / org-wide data that ANY deeply-nested component can
+// PURPOSE: App-level data that ANY deeply-nested component can
 //          reach via useApp(), no matter how many providers sit between.
 //
 // BEST PRACTICE — SEPARATE FILE PER CONTEXT:
@@ -19,6 +19,51 @@ import { createContext, useContext, useState, useMemo, useCallback } from 'react
 //   from "Provider gave a valid falsy value" (intentional).
 // ═══════════════════════════════════════════════════════════════════════
 const AppContext = createContext(undefined);
+
+// ─── Q: IF A PROVIDER DOESN'T PASS VALUE EXCEPT children, USE NORMAL COMPONENT? ──
+//
+//   If a component renders <SomeContext.Provider value={...}>, it is a
+//   real Provider — even if it has no internal state (e.g., UserProvider
+//   before it was enriched with currentTheme).
+//
+//   But if a component does NOT render <SomeContext.Provider> at all and
+//   only wraps children in a <div> or fragment, it is just a layout
+//   component — use a normal component, not a "provider."
+//
+//   Quick test: does the component call <XxxContext.Provider value={...}>?
+//     YES → keep as Provider (descendants can useXxx() to read the value)
+//     NO  → convert to normal component (it provides no context)
+//
+// ─── Q: MUST useMemo BE USED FOR CONTEXT VALUES? ────────────────────
+//
+//   It depends on whether the value is a NEW object reference each render.
+//   React uses Object.is() to decide if consumers should re-render:
+//
+//   1. PRIMITIVE value (string, number, boolean):
+//      → NO useMemo needed. Object.is('dark', 'dark') is true.
+//        e.g., <MyContext.Provider value={count}>
+//
+//   2. STABLE REFERENCE from props or module constant:
+//      → NO useMemo needed. Same reference every render.
+//        e.g., <UserContext.Provider value={user}> where `user` is a
+//        prop that doesn't change between renders.
+//
+//   3. OBJECT/ARRAY CREATED INSIDE the provider (this file ↓):
+//      → YES, useMemo it. Without it, { a, b, c } creates a new object
+//        every render → Object.is(old, new) is false → ALL consumers
+//        re-render even if a, b, c didn't change.
+//
+//   4. FUNCTIONS (setState, handlers) included in the value:
+//      → YES, wrap each function in useCallback FIRST, then include
+//        them in useMemo's dependency array. setState itself (e.g.,
+//        setAnnouncements) is already stable (React guarantees this),
+//        but functions that CALL setState (e.g., addAnnouncement) are
+//        recreated every render unless wrapped in useCallback.
+//
+//   This file demonstrates case 3 + 4: the value object contains
+//   both state (announcements) and functions (addAnnouncement,
+//   removeAnnouncement), so it uses useCallback + useMemo.
+// ──────────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }) {
   const [announcements, setAnnouncements] = useState([
@@ -47,7 +92,7 @@ export function AppProvider({ children }) {
   const value = useMemo(() => ({
     companyName: 'Acme Corp',
     fiscalQuarter: 'Q1 2026',
-    // Company-wide default theme — used by ThemeProvider to initialise each
+    // App-level default theme — used by ThemeProvider to initialise each
     // card's theme. This creates a REAL dependency: ThemeProvider calls
     // useApp() internally, so AppProvider MUST be an ancestor of ThemeProvider.
     defaultTheme: 'dark',
