@@ -307,10 +307,11 @@ The LayoutMultiProviders page (`/useContext/LayoutMultiProviders/index.html`) in
 
 ### User Posts with Author Short Name
 
-Each user has 3 posts listed below their info. Every post displays:
+Each user has 3 posts listed below their info. Above the posts, a **summary region** displays app-level info once (companyName, fiscalQuarter, latest announcement) from `AppContext`. Each post displays:
 - Post title and body
 - Author's **short name** (e.g., "Alex") via `useUser()`
-- Company name and fiscal quarter via `useApp()`
+
+App-level info is shown once in the summary — not repeated on every post.
 
 ### Cross-Context Data Access (Inner → Outer)
 
@@ -541,14 +542,9 @@ Object.is(oldValue, newValue) is true → consumers DO NOT re-render
 
 ### Provider Composition (Nesting Order Matters)
 
-```
-<AppProvider>              ← available to everything
-  <ThemeProvider>          ← available to UserProvider's children & below
-    <UserProvider>         ← available to UserCard & below
-      <UserCard />
-```
-
 Providers must be ordered from most-global to most-specific. A component can only `useContext()` a context whose Provider is an **ancestor** in the tree. If `ThemeProvider` were inside `UserCard`, the `UserCard` itself couldn't call `useTheme()` — only its children could.
+
+See [How to Verify Provider Order Is Correct](#how-to-verify-provider-order-is-correct) for the full verification checklist.
 
 ---
 

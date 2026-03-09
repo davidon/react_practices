@@ -1,0 +1,65 @@
+feat(UseContext): summary + detail pages, IndexedDB posts, proverb seeds, routing
+
+Summary page (UseContext/App.jsx):
+- Load posts from IndexedDB (single source of truth, shared with detail page)
+- Seed 2 random proverbs per user when no posts exist; persist seeds to IndexedDB
+- Sanitise corrupted IndexedDB data on load (earlier proverb-object bug)
+- Clickable user names open an overlay popup with full user details
+- Post titles displayed as plain text (not links)
+- Per-user "ALL POSTS →" link navigates to detail page for that user
+- "ALL POSTS →" disabled (grey, non-clickable) when user has no posts
+- Quick-add post input box when user has no posts; persists to IndexedDB
+
+Detail page (UseContext/LayoutMultiProviders/):
+- URL-driven user selection: /user/:userId and /user/:userId/post/:postId
+- UserPage component reads userId from URL params, finds matching user,
+  wraps in the correct provider chain (AppProvider → ThemeProvider →
+  UserProvider → PostProvider)
+- "Back" links navigate to the correct user's post list (/user/:userId)
+- PostDetail shows post body, author, likes; supports liking
+- Proverb-seeded posts tagged with isProverb: true
+- Heading shows "My Proverbs" when only seed proverbs exist,
+  "Your Posts (N)" when user-created posts exist (count excludes proverbs)
+
+Shared data & helpers:
+- New UseContext/proverbs.js: PROVERBS data, pickRandom(), createSeedPosts(),
+  sanitisePosts() — used by both summary and detail pages
+- Removed static posts array from users.js (posts now come only from IndexedDB)
+- PostContext.jsx imports from proverbs.js instead of duplicating data
+
+Routing:
+- Added react-router-dom (HashRouter) for detail page navigation
+- Routes: / (default user), /user/:userId (list), /user/:userId/post/:postId (detail)
+
+Provider architecture comments:
+- Clarified "stateless provider vs normal component" with concrete code example:
+  a component that only renders {children} without <SomeContext.Provider value={...}>
+  is NOT a real provider — rename to normal component
+- Updated AppContext.jsx and README.md with the same Q&A
+
+Infrastructure:
+- Renamed directories: Tasks_LocalStorage → Tasks, useRef → UseRef
+- Changed vite base path from /react_practices/ to /ReactPractices/
+- Added favicon.ico (16×16 blue square) to public/
+- Added <link rel="icon"> to all index.html files (root, UseContext, LayoutMultiProviders)
+
+Files changed (18):
+  M  UseContext/App.jsx                          — summary page rewrite
+  M  UseContext/AppContext.jsx                   — provider vs component Q&A
+  M  UseContext/LayoutMultiProviders/App.jsx     — URL-driven user routing
+  M  UseContext/LayoutMultiProviders/PostContext.jsx — shared proverbs, isProverb flag
+  A  UseContext/LayoutMultiProviders/PostDetail.jsx  — single post detail view
+  M  UseContext/LayoutMultiProviders/UserPosts.jsx   — My Proverbs / Your Posts heading
+  M  UseContext/LayoutMultiProviders/index.html  — favicon link
+  M  UseContext/LayoutMultiProviders/main.jsx    — HashRouter setup
+  M  UseContext/README.md                        — provider composition docs
+  M  UseContext/UserPosts.jsx                    — fallback for removed posts
+  M  UseContext/index.html                       — favicon link
+  A  UseContext/proverbs.js                      — shared proverb data + helpers
+  M  UseContext/users.js                         — removed static posts array
+  R  Tasks_LocalStorage/ → Tasks/               — directory rename
+  R  useRef/ → UseRef/                           — directory rename
+  M  index.html                                  — favicon link
+  M  vite.config.js                              — base path /ReactPractices/
+  A  public/favicon.ico                          — 16×16 blue icon
+

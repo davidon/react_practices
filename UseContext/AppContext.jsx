@@ -20,19 +20,22 @@ import { createContext, useContext, useState, useMemo, useCallback } from 'react
 // ═══════════════════════════════════════════════════════════════════════
 const AppContext = createContext(undefined);
 
-// ─── Q: IF A PROVIDER DOESN'T PASS VALUE EXCEPT children, USE NORMAL COMPONENT? ──
+// ─── Q: IF A COMPONENT ONLY RENDERS {children} WITH NO <Provider value={...}>, ──
+// ──    SHOULD IT BE A NORMAL COMPONENT INSTEAD?                               ──
 //
-//   If a component renders <SomeContext.Provider value={...}>, it is a
-//   real Provider — even if it has no internal state (e.g., UserProvider
-//   before it was enriched with currentTheme).
+//   YES — if it does NOT render <SomeContext.Provider value={...}>,
+//   it provides no context. It's just a layout/wrapper component:
 //
-//   But if a component does NOT render <SomeContext.Provider> at all and
-//   only wraps children in a <div> or fragment, it is just a layout
-//   component — use a normal component, not a "provider."
+//     // ❌ NOT a real provider — no <SomeContext.Provider> inside
+//     function UserProvider({ children }) {
+//       return <div className="wrapper">{children}</div>;
+//       // Descendants CANNOT call useUser() — no context is provided.
+//       // Rename to <UserWrapper> — drop the "Provider" suffix.
+//     }
 //
-//   Quick test: does the component call <XxxContext.Provider value={...}>?
-//     YES → keep as Provider (descendants can useXxx() to read the value)
-//     NO  → convert to normal component (it provides no context)
+//   Quick test: does the component render <XxxContext.Provider value={...}>?
+//     YES → real Provider (even if it has no internal state)
+//     NO  → normal component — rename it, drop the "Provider" suffix
 //
 // ─── Q: MUST useMemo BE USED FOR CONTEXT VALUES? ────────────────────
 //

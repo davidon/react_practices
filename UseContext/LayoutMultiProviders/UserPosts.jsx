@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useUser } from '../UserContext.jsx';
 import { useTheme, themeStyles } from '../ThemeContext.jsx';
 import { useApp } from '../AppContext.jsx';
@@ -14,26 +15,27 @@ import ThemeButton from '../ThemeButton.jsx';
  *   • useApp()   → app-level data  (AppContext)
  *   • usePosts() → post data       (PostContext — local to LayoutMultiProviders)
  *
- * Includes a "Create new post" form. addPost(title) only needs the title —
- * the author is auto-tagged by PostProvider from UserContext (user.shortName).
- * Posts are persisted to IndexedDB automatically by PostProvider.
+ * Includes a "Create new post" form with title + body fields.
+ * addPost(title, body) auto-tags the author from UserContext.
+ * Each post title links to a detail page at /user/:userId/post/:postId.
  */
 function UserPosts() {
   const user = useUser();
   const { theme } = useTheme();
   const { companyName } = useApp();
-  // addPost is now used — it auto-tags the author from UserContext
-  const { posts, addPost, likePost } = usePosts();
+  const { posts, addPost, likePost, hasUserPosts } = usePosts();
   const styles = themeStyles[theme];
 
-  // Local state for the "new post" input
-  const [draft, setDraft] = useState('');
+  // Local state for the "new post" form
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftBody, setDraftBody] = useState('');
 
   const handleAddPost = () => {
-    const trimmed = draft.trim();
-    if (trimmed) {
-      addPost(trimmed);   // only title needed — author auto-tagged by PostProvider
-      setDraft('');
+    const trimmedTitle = draftTitle.trim();
+    if (trimmedTitle) {
+      addPost(trimmedTitle, draftBody.trim());
+      setDraftTitle('');
+      setDraftBody('');
     }
   };
 
@@ -67,20 +69,33 @@ function UserPosts() {
           <p style={{ fontSize: 12, opacity: 0.6, margin: '2px 0 8px' }}>
             Author will be auto-tagged as <strong>{user.shortName}</strong> (from UserContext)
           </p>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
               placeholder="Post title…"
-              onKeyDown={(e) => e.key === 'Enter' && handleAddPost()}
               style={{
-                flex: 1,
                 padding: '6px 10px',
                 borderRadius: 4,
                 border: '1px solid #999',
                 fontSize: 14,
                 background: 'transparent',
                 color: 'inherit',
+              }}
+            />
+            <textarea
+              value={draftBody}
+              onChange={(e) => setDraftBody(e.target.value)}
+              placeholder="Post content (optional)…"
+              rows={3}
+              style={{
+                padding: '6px 10px',
+                borderRadius: 4,
+                border: '1px solid #999',
+                fontSize: 14,
+                background: 'transparent',
+                color: 'inherit',
+                resize: 'vertical',
               }}
             />
             <button
@@ -93,6 +108,7 @@ function UserPosts() {
                 fontSize: 14,
                 background: '#4a90d9',
                 color: '#fff',
+                alignSelf: 'flex-start',
               }}
             >
               Add Post
@@ -100,17 +116,31 @@ function UserPosts() {
           </div>
         </section>
 
-        {/* Posts Section */}
+        {/* Posts Section — "My Proverbs" when only seed proverbs,
+             "Your Posts (N)" when user has created real posts */}
         <section className="posts-section">
-          <h2>Your Posts ({posts.length})</h2>
+          <h2>{hasUserPosts ? `Your Posts (${posts.filter(p => !p.isProverb).length})` : 'My Proverbs'}</h2>
           {posts.length > 0 ? (
             <ul className="posts-list" style={{ listStyle: 'none', padding: 0 }}>
               {posts.map(post => (
                 <li key={post.id} className="post-item" style={{ padding: '8px 0', borderBottom: '1px solid rgba(128,128,128,0.3)' }}>
                   <div className="post-header">
-                    <h3 style={{ margin: '4px 0' }}>{post.title}</h3>
+                    <h3 style={{ margin: '4px 0' }}>
+                      {/* Link to detail page: /user/:userId/post/:postId */}
+                      <Link
+                        to={`/user/${user.id}/post/${post.id}`}
+                        style={{ color: '#4a90d9', textDecoration: 'none' }}
+                      >
+                        {post.title}
+                      </Link>
+                    </h3>
                     <span className="post-author">by {post.author}</span>
                   </div>
+                  {post.body && (
+                    <p style={{ margin: '4px 0', fontSize: 13, opacity: 0.8 }}>
+                      {post.body.length > 80 ? post.body.slice(0, 80) + '…' : post.body}
+                    </p>
+                  )}
                   <div className="post-actions">
                     <button onClick={() => likePost(post.id)}>
                       👍 Like ({post.likes})

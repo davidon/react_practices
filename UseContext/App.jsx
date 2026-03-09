@@ -1,140 +1,244 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './AppContext.jsx';
-import { ThemeProvider } from './ThemeContext.jsx';
-import { UserProvider } from './UserContext.jsx';
 import { USERS } from './users.js';
-import UserCard from './UserCard.jsx';
+import { loadPosts, savePosts } from './LayoutMultiProviders/postsDB.js';
+import { createSeedPosts, sanitisePosts } from './proverbs.js';
 
 /**
- * App — root component.
+ * App — SUMMARY PAGE
  *
- * ═══════════════════════════════════════════════════════════════════════
- * HOW TO VERIFY PROVIDER ORDER IS CORRECT
- * ═══════════════════════════════════════════════════════════════════════
+ * Displays all users and their post titles in a compact overview.
+ * Posts are loaded from IndexedDB — the SAME data source as the detail page,
+ * so post IDs are always consistent between summary and detail views.
  *
- * 1. ERROR GUARD IN CUSTOM HOOKS (already in place)
- *    Each custom hook throws if called outside its provider:
- *      useApp()  → "useApp must be used within an AppProvider"
- *      useTheme() → "useTheme must be used within a ThemeProvider"
- *      useUser() → "useUser must be used within a UserProvider"
- *
- *    If you accidentally nest providers in the wrong order — e.g.,
- *    put <UserProvider> outside <AppProvider> — and a child calls
- *    useApp(), it will throw immediately with a clear message.
- *    This is your FIRST line of defense: the `undefined` sentinel
- *    pattern catches missing providers at render time.
- *
- * 2. RULE OF THUMB: outer providers must NOT depend on inner ones.
- *    Ask: "Does Provider A's VALUE need data from Provider B?"
- *      • If yes → Provider B must wrap Provider A (B is outer).
- *      • If no  → order doesn't matter between them.
- *
- *    In this app:
- *      AppProvider   → needs nothing         → outermost ✅
- *      ThemeProvider → calls useApp() to read defaultTheme
- *                    → AppProvider MUST be above it ✅ (and it is)
- *      UserProvider  → calls useTheme() to persist per-user theme to localStorage
- *                    → ThemeProvider MUST be above it ✅ (and it is)
- *
- *    Full dependency chain:
- *      AppProvider → ThemeProvider → UserProvider
- *      Each inner provider depends on the one above it.
- *
- *    Since ThemeProvider calls useApp() and UserProvider calls useTheme(),
- *    swapping any two would break the dependency and throw at render time.
- *
- * 3. CONSUMER TEST: the deepest component tells you the correct order.
- *    PostItem calls useApp() + useTheme() + useUser(). All three
- *    providers must be ANCESTORS of PostItem. If PostItem renders
- *    without errors, the order is correct.
- *
- * 4. DEV-ONLY RENDER LOGGING (optional):
- *    In development, you can add console.log inside each Provider
- *    to confirm mount order:
- *      AppProvider:   "AppProvider mounted"
- *      ThemeProvider: "ThemeProvider mounted"
- *      UserProvider:  "UserProvider mounted"
- *    React renders parent before children, so the log order
- *    confirms the nesting order.
- *
- * 5. REACT DEVTOOLS:
- *    Open Components tab → expand the tree → visually confirm:
- *      AppProvider > ThemeProvider > UserProvider > UserCard > ...
- * ═══════════════════════════════════════════════════════════════════════
+ * - User names are clickable → overlay popup with user details
+ * - Post titles link to: LayoutMultiProviders/index.html#/user/:userId/post/:postId
+ * - When a user has no posts → shows an input box to add a quick post
  */
 export default function App() {
   return (
     <AppProvider>
-      <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-        <h1 style={{ textAlign: 'center' }}>useContext — Multi-User Dashboard</h1>
-        <p style={{ textAlign: 'center', color: '#666' }}>
-          Each user card has its own theme. Inner components access outer AppContext.
-        </p>
-
-        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {USERS.map((user) => (
-            /* Each user gets its OWN ThemeProvider → independent themes.
-             *
-             * key={user.id} — React's `key` prop, required on every element
-             *   rendered inside ANY loop (.map(), for, for...of, while, etc.).
-             *   React uses it to track which items changed/moved/were removed
-             *   between renders. Without `key`, React logs a console warning:
-             *     "Each child in a list should have a unique 'key' prop."
-             *
-             *   .map() is most common because it returns JSX directly, but
-             *   you'd also need `key` if you built an array with a for loop:
-             *     const cards = [];
-             *     for (const user of USERS) {
-             *       cards.push(<ThemeProvider key={user.id}>...</ThemeProvider>);
-             *     }
-             *     return <div>{cards}</div>;
-             *
-             *   `key` is ONLY needed inside lists (any loop that produces
-             *   multiple sibling elements). Components rendered once
-             *   (like <UserCard />, <AnnouncementManager />) don't need
-             *   `key` — there's no list to reconcile.
-             *
-             * userId={user.id} — a regular prop passed to ThemeProvider so
-             *   it can read/write localStorage with a per-user key
-             *   (e.g., localStorage key "theme_user_1").
-             *
-             * They look similar but serve completely different purposes:
-             *   key    → React internal, for list reconciliation, never accessible as props.key
-             *   userId → app logic, accessible inside ThemeProvider as props.userId */
-            <ThemeProvider key={user.id} userId={user.id}>
-              {/* ↑ ThemeProvider calls useApp() → reads defaultTheme
-               *   WHY THIS ORDER: ThemeProvider needs AppProvider's defaultTheme
-               *   to initialise each user card's theme. If ThemeProvider were
-               *   outside AppProvider, useApp() would find no provider above it
-               *   and throw: "useApp must be used within an AppProvider" */}
-              <UserProvider user={user}>
-                {/* ↑ UserProvider calls useTheme() → reads theme
-                 *   WHY THIS ORDER: UserProvider needs ThemeProvider's theme
-                 *   to persist it to localStorage and enrich the user object
-                 *   with currentTheme. If UserProvider were outside ThemeProvider,
-                 *   useTheme() would throw: "useTheme must be used within a ThemeProvider" */}
-                <UserCard />
-              </UserProvider>
-            </ThemeProvider>
-          ))}
-        </div>
-
-        {/* Announcement manager sits outside all user cards */}
-        <AnnouncementManager />
-      </div>
+      <SummaryDashboard />
     </AppProvider>
   );
 }
 
+/**
+ * SummaryDashboard — renders the summary page content.
+ * Separated from App so it can call useApp() (must be inside AppProvider).
+ */
+function SummaryDashboard() {
+  const { companyName } = useApp();
+
+  // State: overlay popup for user details
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  return (
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: 800, margin: '0 auto' }}>
+      <h1 style={{ textAlign: 'center' }}>useContext — Summary</h1>
+      <p style={{ textAlign: 'center', color: '#666' }}>
+        {companyName} · All users and posts at a glance
+      </p>
+
+      {USERS.map((user) => (
+        <UserSummaryCard
+          key={user.id}
+          user={user}
+          onUserClick={() => setSelectedUser(user)}
+        />
+      ))}
+
+      {/* Overlay popup for user details */}
+      {selectedUser && (
+        <UserDetailOverlay
+          user={selectedUser}
+          onClose={() => setSelectedUser(null)}
+        />
+      )}
+
+      <AnnouncementManager />
+    </div>
+  );
+}
 
 /**
- * AnnouncementManager — sits OUTSIDE all user cards but INSIDE AppProvider.
- *
- * KEY CONCEPT: Context changes propagate to ALL consumers automatically.
- *   When addAnnouncement() updates the announcements array in AppProvider,
- *   React re-renders every component that calls useApp() — including every
- *   PostItem deep inside every user card. This is how "live shared state"
- *   works with context: one mutation at the top, instant updates everywhere.
+ * UserSummaryCard — shows one user's name (clickable) + posts loaded from IndexedDB.
+ * If no posts exist, shows a quick-add input box instead of fake data.
+ */
+function UserSummaryCard({ user, onUserClick }) {
+  const [posts, setPosts] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [quickTitle, setQuickTitle] = useState('');
+
+  const detailBase = 'LayoutMultiProviders/index.html#';
+
+  // Load posts from IndexedDB — same DB the detail page uses.
+  // If no posts exist, seed with random proverbs (same as detail page).
+  useEffect(() => {
+    loadPosts(user.id)
+      .then(saved => {
+        if (saved && saved.length > 0) {
+          setPosts(sanitisePosts(saved));
+        } else {
+          // No saved posts — seed proverbs and persist so detail page sees them
+          const seeds = createSeedPosts(user.shortName);
+          setPosts(seeds);
+          savePosts(user.id, seeds).catch(err => {
+            console.error(`Failed to save seed posts for user ${user.id}:`, err);
+          });
+        }
+        setLoaded(true);
+      })
+      .catch(err => {
+        console.error(`Failed to load posts for user ${user.id}:`, err);
+        // Fall back to seed proverbs in memory (won't persist)
+        setPosts(createSeedPosts(user.shortName));
+        setLoaded(true);
+      });
+  }, [user.id, user.shortName]);
+
+  const handleQuickAdd = () => {
+    const trimmed = quickTitle.trim();
+    if (!trimmed) return;
+    const newPost = {
+      id: Date.now(),
+      title: trimmed,
+      body: '',
+      author: user.shortName,
+      likes: 0,
+    };
+    const updated = [...posts, newPost];
+    setPosts(updated);
+    setQuickTitle('');
+    // Persist to IndexedDB so the detail page sees it too
+    savePosts(user.id, updated).catch(err => {
+      console.error(`Failed to save quick post for user ${user.id}:`, err);
+    });
+  };
+
+  return (
+    <section
+      style={{
+        marginBottom: 24,
+        padding: 16,
+        border: '1px solid #ccc',
+        borderRadius: 8,
+      }}
+    >
+      {/* User name — clickable to open overlay popup */}
+      <h2
+        style={{ margin: '0 0 4px', cursor: 'pointer', color: '#4a90d9' }}
+        onClick={onUserClick}
+        title="Click to view user details"
+      >
+        {user.fullName}
+      </h2>
+      <p style={{ margin: '0 0 12px', fontSize: 13, color: '#888' }}>
+        {user.shortName} · {user.team} · {user.title}
+      </p>
+
+      {!loaded ? (
+        <p style={{ fontSize: 13, color: '#999' }}>Loading posts…</p>
+      ) : posts.length > 0 ? (
+        <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
+          {posts.map((post) => (
+            <li key={post.id} style={{ padding: '4px 0', fontSize: 14 }}>
+              {post.title}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        /* No posts — show quick-add input instead of fake data */
+        <div>
+          <p style={{ fontSize: 13, color: '#999', margin: '0 0 8px' }}>
+            No posts yet. Add one:
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={quickTitle}
+              onChange={(e) => setQuickTitle(e.target.value)}
+              placeholder="Post title…"
+              onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+              style={{ flex: 1, padding: '4px 8px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc' }}
+            />
+            <button
+              onClick={handleQuickAdd}
+              style={{ padding: '4px 12px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#4a90d9', color: '#fff' }}
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ALL POSTS link — disabled when user has no posts */}
+      <div style={{ marginTop: 12 }}>
+        {posts.length > 0 ? (
+          <a
+            href={`${detailBase}/user/${user.id}`}
+            style={{ color: '#4a90d9', textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}
+          >
+            ALL POSTS →
+          </a>
+        ) : (
+          <span style={{ color: '#999', fontSize: 13, fontWeight: 'bold', cursor: 'default' }}>
+            ALL POSTS →
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * UserDetailOverlay — popup overlay showing full user details.
+ * Clicking the backdrop or ✕ closes it.
+ */
+function UserDetailOverlay({ user, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff', color: '#222',
+          padding: 24, borderRadius: 12, minWidth: 320, maxWidth: 480,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          position: 'relative',
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: 8, right: 12,
+            border: 'none', background: 'none', fontSize: 20, cursor: 'pointer', color: '#666',
+          }}
+        >
+          ✕
+        </button>
+        <h2 style={{ margin: '0 0 16px' }}>{user.fullName}</h2>
+        <table style={{ width: '100%', fontSize: 14, borderCollapse: 'collapse' }}>
+          <tbody>
+            <tr><td style={{ padding: '6px 0', fontWeight: 'bold' }}>Short Name</td><td>{user.shortName}</td></tr>
+            <tr><td style={{ padding: '6px 0', fontWeight: 'bold' }}>Team</td><td>{user.team}</td></tr>
+            <tr><td style={{ padding: '6px 0', fontWeight: 'bold' }}>Title</td><td>{user.title}</td></tr>
+            <tr><td style={{ padding: '6px 0', fontWeight: 'bold' }}>User ID</td><td>{user.id}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * AnnouncementManager — manages live announcements via AppContext.
  */
 function AnnouncementManager() {
   const { announcements, addAnnouncement, removeAnnouncement } = useApp();
@@ -149,7 +253,7 @@ function AnnouncementManager() {
 
   return (
     <div style={{ maxWidth: 600, margin: '30px auto', padding: 16, border: '1px solid #ccc', borderRadius: 8 }}>
-      <h3>📢 Company Announcements (AppContext)</h3>
+      <h3>📢 Announcements (AppContext)</h3>
       <ul>
         {announcements.map((a, i) => (
           <li key={`${a}-${i}`}>

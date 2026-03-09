@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '../UserContext.jsx';
 import { loadPosts, savePosts } from './postsDB.js';
+import { createSeedPosts, sanitisePosts } from '../proverbs.js';
 
 // ═══════════════════════════════════════════════════════════════════════
 // POST CONTEXT
@@ -24,36 +25,6 @@ import { loadPosts, savePosts } from './postsDB.js';
 //   as seed posts. Every mutation (add, like) is persisted automatically.
 //
 // ═══════════════════════════════════════════════════════════════════════
-
-// 20 proverbs, each ≤ 10 words — used as seed posts when IndexedDB is empty.
-const PROVERBS = [
-  'Actions speak louder than words.',
-  'A penny saved is a penny earned.',
-  'The early bird catches the worm.',
-  'Where there is a will there is a way.',
-  'Practice makes perfect.',
-  'Better late than never.',
-  'Two wrongs do not make a right.',
-  'Knowledge is power.',
-  'Fortune favors the bold.',
-  'Honesty is the best policy.',
-  'When in Rome do as Romans do.',
-  'Necessity is the mother of invention.',
-  'The pen is mightier than the sword.',
-  'People in glass houses should not throw stones.',
-  'A journey of a thousand miles begins with one step.',
-  'Still waters run deep.',
-  'Time is money.',
-  'Rome was not built in a day.',
-  'Well begun is half done.',
-  'Hope for the best prepare for the worst.',
-];
-
-/** Pick `count` random unique items from an array. */
-function pickRandom(arr, count) {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
-}
 
 const PostContext = createContext(undefined);
 
@@ -106,31 +77,19 @@ export function PostProvider({ children }) {
       .then(saved => {
         if (cancelled) return;
         if (saved && saved.length > 0) {
-          setPosts(saved);
+          // Sanitise corrupted data from earlier bug
+          setPosts(sanitisePosts(saved));
         } else {
           // No saved posts — seed with 2 random proverbs
-          const seeds = pickRandom(PROVERBS, 2).map((proverb, i) => ({
-            id: i + 1,
-            title: proverb,
-            author: user.shortName,
-            likes: 0,
-          }));
-          setPosts(seeds);
+          setPosts(createSeedPosts(user.shortName));
         }
         setLoaded(true);
       })
       .catch(err => {
-        // IndexedDB failed — log and fall back to seed proverbs so the
-        // UI still works (read-only, posts won't persist this session).
+        // IndexedDB failed — fall back to seed proverbs
         console.error('Failed to load posts from IndexedDB:', err);
         if (cancelled) return;
-        const seeds = pickRandom(PROVERBS, 2).map((proverb, i) => ({
-          id: i + 1,
-          title: proverb,
-          author: user.shortName,
-          likes: 0,
-        }));
-        setPosts(seeds);
+        setPosts(createSeedPosts(user.shortName));
         setLoaded(true);
       });
 
@@ -147,11 +106,12 @@ export function PostProvider({ children }) {
     }
   }, [loaded, user.id, posts]);
 
-  // addPost only takes `title` — the author is auto-tagged from UserContext.
-  const addPost = useCallback((title) => {
+  // addPost takes `title` and optional `body` — author is auto-tagged from UserContext.
+  const addPost = useCallback((title, body = '') => {
     setPosts(prev => [...prev, {
       id: Date.now(),   // unique id based on timestamp
       title,
+      body,
       author: user.shortName,
       likes: 0,
     }]);
@@ -165,9 +125,12 @@ export function PostProvider({ children }) {
     );
   }, []);
 
+  // true when at least one post is user-created (not a seed proverb)
+  const hasUserPosts = posts.some(p => !p.isProverb);
+
   const value = useMemo(
-    () => ({ posts, addPost, likePost }),
-    [posts, addPost, likePost]
+    () => ({ posts, addPost, likePost, hasUserPosts }),
+    [posts, addPost, likePost, hasUserPosts]
   );
 
   return (

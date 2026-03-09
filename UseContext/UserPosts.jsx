@@ -8,31 +8,21 @@ import { useTheme, themeStyles } from './ThemeContext.jsx';
  * Component path:  AppProvider → ThemeProvider → UserProvider
  *                    → UserCard → UserPosts → PostItem
  *
- * KEY CONCEPT: Innermost component consuming the outermost context.
- *   PostItem reaches across ALL context boundaries:
+ * KEY CONCEPT: Innermost component consuming outer contexts.
+ *   PostItem reaches across context boundaries:
  *     • useUser()  → UserContext  (middle) — user's shortName
  *     • useTheme() → ThemeContext (middle) — per-card theme styling
- *     • useApp()   → AppContext  (OUTER)  — companyName, fiscalQuarter,
- *                                           live announcements
  *
  *   No intermediate component (UserCard, UserPosts) needs to know about
- *   or forward AppContext data. This is the core value of useContext:
+ *   or forward these context values. This is the core value of useContext:
  *   it eliminates prop-drilling across arbitrarily deep component trees.
  *
- * PRACTICAL BUSINESS USE-CASES this pattern solves:
- *   1. Org-wide branding (companyName, logo URL) shown in leaf components
- *   2. Fiscal/reporting period metadata on every data record
- *   3. Live announcements / system alerts displayed in-context
- *   4. Feature flags checked deep inside form fields or table cells
- *   5. Locale / i18n strings accessed by the smallest UI atoms
- *   6. Current user session / permissions gating action buttons
+ *   NOTE: companyName and fiscalQuarter are now displayed in a summary
+ *   region above the posts (in UserPosts), not repeated on each post.
  */
 function PostItem({ post }) {
-  // Three separate useContext calls — each resolves independently
-  // by walking up to the nearest matching Provider.
   const user = useUser();           // → nearest UserProvider
   const { theme } = useTheme();     // → nearest ThemeProvider
-  const { companyName, fiscalQuarter, announcements } = useApp();  // → outermost AppProvider
 
   // Theme styles applied per-post, matching the card's current theme
   const styles = themeStyles[theme];
@@ -51,25 +41,8 @@ function PostItem({ post }) {
       <strong>{post.title}</strong>
       <p style={{ margin: '4px 0 2px', fontSize: 13 }}>{post.body}</p>
       <small style={{ opacity: 0.65 }}>
-        — {user.shortName} · {companyName} · {fiscalQuarter}
+        — {user.shortName}
       </small>
-      {/* KEY: announcements come from AppContext — when AnnouncementManager
-           adds/removes at the top level, this PostItem (deepest leaf) re-renders
-           automatically. React context change → all useApp() consumers update. */}
-      {announcements.length > 0 && (
-        <div
-          style={{
-            marginTop: 4,
-            fontSize: 11,
-            padding: '2px 6px',
-            background: theme === 'dark' ? '#444' : '#f0f0f0',
-            borderRadius: 3,
-            color: theme === 'dark' ? '#ffc' : '#333',
-          }}
-        >
-          📌 {announcements[0]}
-        </div>
-      )}
     </li>
   );
 }
@@ -77,20 +50,50 @@ function PostItem({ post }) {
 /**
  * UserPosts — lists all posts for the current user.
  *
- * KEY: This component only needs useUser() (for the posts array).
- *   It does NOT need useApp() or useTheme() — those are consumed
- *   by PostItem directly. This is the benefit of context over props:
- *   intermediate components don't need to "pass through" data they
- *   don't use themselves.
+ * Displays a summary region above the posts with app-level info
+ * (companyName, fiscalQuarter, announcements) from AppContext,
+ * so this info is shown once — not repeated on every post.
  */
 export default function UserPosts() {
   const user = useUser();
+  const { companyName, fiscalQuarter, announcements } = useApp();
+  const { theme } = useTheme();
 
   return (
     <div>
-      <h4 style={{ margin: '12px 0 6px' }}>Posts ({user.posts.length})</h4>
+      {/* ── Summary region: app-level info displayed ONCE above posts ── */}
+      <div style={{
+        padding: '6px 10px',
+        marginBottom: 8,
+        fontSize: 12,
+        opacity: 0.7,
+        borderBottom: '1px solid rgba(128,128,128,0.3)',
+      }}>
+        <span>{companyName} · {fiscalQuarter}</span>
+        {/* Announcements from AppContext — when AnnouncementManager
+             adds/removes at the top level, this region re-renders
+             automatically. Context change → all useApp() consumers update. */}
+        {announcements.length > 0 && (
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 11,
+              padding: '2px 6px',
+              background: theme === 'dark' ? '#444' : '#f0f0f0',
+              borderRadius: 3,
+              color: theme === 'dark' ? '#ffc' : '#333',
+              display: 'inline-block',
+              marginLeft: 8,
+            }}
+          >
+            📌 {announcements[0]}
+          </div>
+        )}
+      </div>
+
+      <h4 style={{ margin: '12px 0 6px' }}>Posts ({(user.posts || []).length})</h4>
       <ul style={{ padding: 0 }}>
-        {user.posts.map((post) => (
+        {(user.posts || []).map((post) => (
           <PostItem key={post.id} post={post} />
         ))}
       </ul>
