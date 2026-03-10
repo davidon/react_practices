@@ -239,7 +239,6 @@ function SummaryDashboard() {
 }
 
 /**
-/**
  * UserSidebar — floating vertical bar at top-left with "USERS" label.
  * Click the triangle to expand and see all users.
  * If viewport is too short to fit all users, groups them by first letter
@@ -248,6 +247,7 @@ function SummaryDashboard() {
  */
 function UserSidebar({ users, onSelectUser }) {
   const [expanded, setExpanded] = useState(false);
+
   // Estimate if all users fit: ~44px per user row + 16px padding
   const ROW_HEIGHT = 44;
   const PANEL_PADDING = 16;
@@ -260,6 +260,7 @@ function UserSidebar({ users, onSelectUser }) {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, [users.length]);
+
   // Group users by first letter of fullName
   const grouped = users.reduce((acc, u) => {
     const letter = u.fullName[0].toUpperCase();
@@ -268,11 +269,13 @@ function UserSidebar({ users, onSelectUser }) {
     return acc;
   }, {});
   const sortedLetters = Object.keys(grouped).sort();
+
   // Track which letter groups are open — all CLOSED by default
   const [openGroups, setOpenGroups] = useState({});
   const toggleGroup = (letter) => {
     setOpenGroups(prev => ({ ...prev, [letter]: !prev[letter] }));
   };
+
   return (
     <div style={{
       position: 'fixed',
@@ -320,6 +323,7 @@ function UserSidebar({ users, onSelectUser }) {
           ▶
         </span>
       </div>
+
       {/* Expanded panel */}
       {expanded && (
         <div style={{
@@ -386,6 +390,7 @@ function UserSidebar({ users, onSelectUser }) {
     </div>
   );
 }
+
 /** Single user row in the sidebar (reused by both flat and categorised views). */
 function UserSidebarItem({ user, indented, onSelect }) {
   return (
@@ -406,6 +411,8 @@ function UserSidebarItem({ user, indented, onSelect }) {
     </div>
   );
 }
+
+/**
  * UserSummaryCard — shows one user's name (clickable) + posts loaded from IndexedDB.
  * If no posts exist, shows a quick-add input box instead of fake data.
  */
