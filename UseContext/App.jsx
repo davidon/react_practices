@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useParams } from 'react-router-dom';
 import { AppProvider, useApp } from './AppContext.jsx';
 import { LoginProvider, useLogin } from './LoginContext.jsx';
@@ -9,6 +9,7 @@ import LoginBar from './LoginBar.jsx';
 import { USERS } from './users.js';
 import { loadPosts, savePosts } from './LayoutMultiProviders/postsDB.js';
 import { sanitisePosts, PROVERBS } from './proverbs.js';
+import { fetchProverbs } from './proverbsAPI.js';
 import UserPosts from './LayoutMultiProviders/UserPosts.jsx';
 import PostDetail from './LayoutMultiProviders/PostDetail.jsx';
 
@@ -194,11 +195,16 @@ function UserSummaryCard({ user, loggedInUser, onUserClick }) {
   const [loaded, setLoaded] = useState(false);
   const [quickTitle, setQuickTitle] = useState('');
 
-  // A random proverb for the disabled input placeholder — different per user
-  const placeholderProverb = useMemo(
-    () => PROVERBS[user.id % PROVERBS.length].title,
-    [user.id]
+  // A proverb for the disabled input placeholder — different per user.
+  // Starts with hardcoded fallback, replaced by API quote when loaded.
+  const [placeholderProverb, setPlaceholderProverb] = useState(
+    PROVERBS[user.id % PROVERBS.length].title
   );
+  useEffect(() => {
+    fetchProverbs(1).then(quotes => {
+      if (quotes.length > 0) setPlaceholderProverb(quotes[0].title);
+    });
+  }, [user.id]);
 
 
   // Can this logged-in user add posts to this card?

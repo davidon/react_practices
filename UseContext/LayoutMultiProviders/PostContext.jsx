@@ -3,6 +3,7 @@ import { useUser } from '../UserContext.jsx';
 import { loadPosts, savePosts } from './postsDB.js';
 import { createSeedPosts, sanitisePosts } from '../proverbs.js';
 import { isSamePerson } from '../users.js';
+import { fetchProverbs } from '../proverbsAPI.js';
 
 // ═══════════════════════════════════════════════════════════════════════
 // POST CONTEXT
@@ -43,10 +44,26 @@ export function PostProvider({ children }) {
   const [posts, setPosts] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
-  // ── EPHEMERAL PROVERBS — random on every mount, never persisted ───
-  // useMemo with [] deps means this runs once per mount (page refresh).
-  // Each refresh picks 2 different random proverbs.
-  const proverbs = useMemo(() => createSeedPosts(user.shortName), [user.shortName]);
+  // ── EPHEMERAL PROVERBS — fetched from ZenQuotes API on mount ──────
+  // Falls back to hardcoded proverbs if the API is unavailable.
+  // Never persisted — refreshed on every page load.
+  const [proverbs, setProverbs] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchProverbs(3).then(quotes => {
+      if (!cancelled) {
+        setProverbs(quotes.map((q, i) => ({
+          id: -(i + 1), // negative IDs to distinguish from real posts
+          title: q.title,
+          body: q.body,
+          author: user.shortName,
+          likes: 0,
+          isProverb: true,
+        })));
+      }
+    });
+    return () => { cancelled = true; };
+  }, [user.shortName]);
 
   // ── LOAD from IndexedDB on mount ──────────────────────────────────
   // Only real user-created posts are loaded. Proverbs with isProverb
