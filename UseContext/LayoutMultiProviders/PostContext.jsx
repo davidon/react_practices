@@ -49,16 +49,18 @@ export function PostProvider({ children }) {
   const [posts, setPosts] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
-  // ── EPHEMERAL PROVERBS — fetched from ZenQuotes API on mount ──────
-  // Falls back to hardcoded proverbs if the API is unavailable.
-  // Never persisted — refreshed on every page load.
+  // ── EPHEMERAL PROVERBS — fetched from ZenQuotes API on every mount ──
+  // Uses proverbsAPI.js which tracks shown quotes to maximize variety.
+  // Re-fetches on every mount (navigation) via the refreshKey.
   const [proverbs, setProverbs] = useState([]);
+  const [refreshKey] = useState(() => Date.now()); // unique per mount
+  const [refreshKey] = useState(() => Date.now()); // unique per mount
   useEffect(() => {
     let cancelled = false;
     fetchProverbs(3).then(quotes => {
       if (!cancelled) {
         setProverbs(quotes.map((q, i) => ({
-          id: -(i + 1), // negative IDs to distinguish from real posts
+          id: -(i + 1),
           title: q.title,
           body: q.body,
           author: user.shortName,
@@ -68,7 +70,7 @@ export function PostProvider({ children }) {
       }
     });
     return () => { cancelled = true; };
-  }, [user.shortName]);
+  }, [user.shortName, refreshKey]);
 
   // ── LOAD: cloud first → IndexedDB fallback ─────────────────────────
   // Only real user-created posts are loaded. Proverbs with isProverb
@@ -131,7 +133,7 @@ export function PostProvider({ children }) {
       likes: 0,
       likedBy: [],   // array of logged-in usernames who liked this post
     }]);
-  }, [user.shortName]);
+  }, [user.shortName, refreshKey]);
 
   // likePost records which logged-in user liked the post.
   // Each user can only like a post once (duplicate prevented).
