@@ -237,7 +237,13 @@ function UserPosts() {
                   })()}
                   <button
                     onClick={() => deletePost(post.id)}
-                    style={{ color: '#d9534f', cursor: 'pointer' }}
+                    disabled={!isOwner}
+                    title={isOwner ? 'Delete post' : loggedInUser ? `Login as ${user.fullName} to delete` : 'Login to delete'}
+                    style={{
+                      color: '#d9534f',
+                      cursor: isOwner ? 'pointer' : 'not-allowed',
+                      opacity: isOwner ? 1 : 0.5,
+                    }}
                   >
                     🗑️ Delete
                   </button>

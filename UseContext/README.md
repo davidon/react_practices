@@ -593,48 +593,15 @@ Then open:
 
 ---
 
-## sessionStorage vs localStorage for Login State
+## Storage & Other Docs
 
-### Why sessionStorage is the right choice (for this SPA)
+For Q&A and reference material not directly tied to the codebase, see the [`Docs/`](./Docs/) folder:
 
-Now that the app is a **single page application** (one `index.html` with HashRouter), `sessionStorage` is the correct choice for login state:
-
-| | `sessionStorage` | `localStorage` |
-|---|---|---|
-| **Lifetime** | Current tab only | Forever (until manual clear) |
-| **Shared across tabs** | ❌ No — per tab | ✅ Yes — all tabs |
-| **Cleared on tab close** | ✅ Yes (automatic logout) | ❌ No |
-| **SPA route changes** | ✅ Survives (same page) | ✅ Survives |
-| **Cross-page nav (separate .html)** | ❌ Lost on new tab | ✅ Shared |
-
-**Key insight:** SPA route changes (`#/` → `#/user/1` → `#/user/1/post/42`) do NOT lose `sessionStorage` because they all happen within the same HTML page. The browser never unloads the page.
-
-### History of this decision
-
-1. **Initially used `sessionStorage`** — correct for a login session (clears on tab close)
-2. **Switched to `localStorage`** — because the summary page and detail page were **separate HTML files** (`UseContext/index.html` and `LayoutMultiProviders/index.html`). Navigating between them (especially via new tab) lost `sessionStorage`
-3. **Switched back to `sessionStorage`** — after converting to SPA routing (HashRouter), all pages are served from one `index.html`. The cross-page problem no longer exists, so `sessionStorage` is correct again
-
-### When to use which
-
-| Use case | Storage |
+| File | Topic |
 |---|---|
-| Login session (tab-scoped) | `sessionStorage` |
-| User preferences (theme, language) | `localStorage` |
-| Form drafts (survives refresh, not close) | `sessionStorage` |
-| Offline data cache | `Cache Storage` (Service Worker) |
-| Cross-site analytics | `Shared Storage` (Privacy Sandbox) |
-
-### Cache Storage vs localStorage vs Shared Storage
-
-| Feature | `localStorage` | `Cache Storage` | `Shared Storage` |
-|---|---|---|---|
-| **Purpose** | Key-value persistence | HTTP response caching | Cross-site data (Privacy Sandbox) |
-| **API** | `getItem`/`setItem` (sync) | `caches.open()` / `cache.put()` (async) | `sharedStorage.set()` (async) |
-| **Data type** | Strings only | Request/Response pairs | Strings only |
-| **Size limit** | ~5–10 MB | Large (quota-managed, 100s of MB) | ~5 entries per origin |
-| **Scope** | Same origin, all tabs | Same origin (via Service Worker) | Cross-origin (write anywhere, read via worklet only) |
-| **Lifetime** | Until cleared | Until cleared / evicted | Browser-managed (~30 days) |
-| **Typical use** | User prefs, tokens, small state | Offline-first PWAs, asset caching | Cross-site A/B testing, frequency capping, ads measurement |
-| **Readable from JS** | ✅ Yes | ✅ Yes (async) | ❌ No — worklet only (opaque output) |
+| [web-storage-comparison.md](./Docs/web-storage-comparison.md) | sessionStorage vs localStorage, Cache Storage, Shared Storage |
+| [worklets-vs-main-thread.md](./Docs/worklets-vs-main-thread.md) | Worklets vs Main Thread vs Web Workers |
+| [chrome-third-party-cookies.md](./Docs/chrome-third-party-cookies.md) | Chrome 3rd-party cookies status (2025) |
+| [conventional-commits.md](./Docs/conventional-commits.md) | `feat`, `fix`, `refactor` commit prefixes |
+| [copilot-edit-vs-plan-vs-agent.md](./Docs/copilot-edit-vs-plan-vs-agent.md) | GitHub Copilot modes comparison |
 

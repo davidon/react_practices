@@ -52,6 +52,9 @@ function PostDetail() {
 
   const post = posts.find(p => String(p.id) === postId);
 
+  // Can the logged-in user delete posts for this viewed user?
+  const isOwner = loggedInUser && loggedInUser === user.fullName;
+
   // Back link goes to this user's list view, not the root "/"
   const backLink = `/user/${user.id}`;
 
@@ -117,7 +120,13 @@ function PostDetail() {
           })()}
           <button
             onClick={() => { deletePost(post.id); navigate(backLink); }}
-            style={{ cursor: 'pointer', fontSize: 14, color: '#d9534f' }}
+            disabled={!isOwner}
+            title={isOwner ? 'Delete post' : loggedInUser ? `Login as ${user.fullName} to delete` : 'Login to delete'}
+            style={{
+              fontSize: 14, color: '#d9534f',
+              cursor: isOwner ? 'pointer' : 'not-allowed',
+              opacity: isOwner ? 1 : 0.5,
+            }}
           >
             🗑️ Delete
           </button>

@@ -84,5 +84,4 @@ export function useLogin() {
   }
   return context;
 }
-}
 
