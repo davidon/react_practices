@@ -54,7 +54,6 @@ export function PostProvider({ children }) {
   // Re-fetches on every mount (navigation) via the refreshKey.
   const [proverbs, setProverbs] = useState([]);
   const [refreshKey] = useState(() => Date.now()); // unique per mount
-  const [refreshKey] = useState(() => Date.now()); // unique per mount
   useEffect(() => {
     let cancelled = false;
     fetchProverbs(3).then(quotes => {
