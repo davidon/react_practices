@@ -111,8 +111,6 @@ function PostDetail() {
               </button>
             );
           })()}
-            👍 Like ({(post.likedBy || []).length})
-          </button>
           <button
             onClick={() => { deletePost(post.id); navigate(backLink); }}
             style={{ cursor: 'pointer', fontSize: 14, color: '#d9534f' }}
