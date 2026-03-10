@@ -79,11 +79,11 @@ function SummaryDashboard() {
   const [loginName, setLoginName] = useState('');
   const [loginPass, setLoginPass] = useState('');
 
-  // State: pagination — 3 users per page
+  // State: pagination — sliding window of 3 users
   const PAGE_SIZE = 3;
-  const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(USERS.length / PAGE_SIZE);
-  const pagedUsers = USERS.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const [startIdx, setStartIdx] = useState(0);
+  const maxStart = Math.max(0, USERS.length - PAGE_SIZE);
+  const pagedUsers = USERS.slice(startIdx, startIdx + PAGE_SIZE);
 
   // Responsive: detect wide screen (≥900px) for horizontal layout
   const [isWide, setIsWide] = useState(() => window.innerWidth >= 900);
@@ -102,15 +102,15 @@ function SummaryDashboard() {
     }
   };
 
-  const canPrev = page > 0;
-  const canNext = page < totalPages - 1;
+  const canPrev = startIdx > 0;
+  const canNext = startIdx < maxStart;
 
-  // Jump to a page so that a specific user is the first card shown
+  // Jump so that a specific user is the first card shown
   const jumpToUser = (userId) => {
     const idx = USERS.findIndex(u => u.id === userId);
     if (idx === -1) return;
-    const targetPage = Math.floor(idx / PAGE_SIZE);
-    setPage(targetPage);
+    
+    setStartIdx(Math.min(idx, maxStart));
   };
 
   // Big arrow button style (shared)
@@ -183,7 +183,7 @@ function SummaryDashboard() {
       }}>
         {/* Left arrow */}
         <button
-          onClick={() => canPrev && setPage(p => p - 1)}
+          onClick={() => canPrev && setStartIdx(i => Math.max(0, i - PAGE_SIZE))}
           disabled={!canPrev}
           style={arrowBtnStyle(canPrev)}
           title={canPrev ? 'Previous page' : ''}
@@ -212,7 +212,7 @@ function SummaryDashboard() {
 
         {/* Right arrow */}
         <button
-          onClick={() => canNext && setPage(p => p + 1)}
+          onClick={() => canNext && setStartIdx(i => Math.min(maxStart, i + PAGE_SIZE))}
           disabled={!canNext}
           style={arrowBtnStyle(canNext)}
           title={canNext ? 'Next page' : ''}
@@ -223,7 +223,7 @@ function SummaryDashboard() {
 
       {/* Page indicator */}
       <p style={{ textAlign: 'center', fontSize: 12, color: '#999', margin: '8px 0 0' }}>
-        {page + 1} / {totalPages}
+        {startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, USERS.length)} of {USERS.length}
       </p>
 
       {/* Overlay popup for user details */}
