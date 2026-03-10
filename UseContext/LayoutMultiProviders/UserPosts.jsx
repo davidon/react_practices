@@ -5,6 +5,8 @@ import { useTheme, themeStyles } from '../ThemeContext.jsx';
 import { useApp } from '../AppContext.jsx';
 import { usePosts } from './PostContext.jsx';
 import { useLogin } from '../LoginContext.jsx';
+import { isSamePerson } from '../users.js';
+import LoginBar from '../LoginBar.jsx';
 import ThemeButton from '../ThemeButton.jsx';
 
 /**
@@ -52,18 +54,19 @@ function UserPosts() {
   const { theme } = useTheme();
   const { companyName } = useApp();
   const { posts, proverbs, addPost, likePost, deletePost } = usePosts();
-  const { loggedInUser, login, logout } = useLogin();
+  const { loggedInUser } = useLogin();
   const styles = themeStyles[theme];
 
   // Local state for the "new post" form
   const [draftTitle, setDraftTitle] = useState('');
   const [draftBody, setDraftBody] = useState('');
 
-  // Local state for the login form
-  const [loginName, setLoginName] = useState('');
-  const [loginPass, setLoginPass] = useState('');
+  // Can the logged-in user create posts for this viewed user?
+  // loggedInUser is a fullName (e.g., "Alex Johnson"), compare against user.fullName.
+  const isOwner = loggedInUser && loggedInUser === user.fullName;
 
   const handleAddPost = () => {
+    if (!isOwner) return;
     const trimmedTitle = draftTitle.trim();
     if (trimmedTitle) {
       addPost(trimmedTitle, draftBody.trim());
@@ -81,42 +84,8 @@ function UserPosts() {
         <ThemeButton />
       </header>
 
-      {/* Login Bar — sessionStorage-backed */}
-      <div style={{ padding: '8px 0', borderBottom: '1px solid rgba(128,128,128,0.3)', marginBottom: 12 }}>
-        {loggedInUser ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span>Logged in as <strong>{loggedInUser}</strong></span>
-            <button
-              onClick={logout}
-              style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid #999', cursor: 'pointer', fontSize: 13 }}
-            >
-              Logout
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <input
-              value={loginName}
-              onChange={(e) => setLoginName(e.target.value)}
-              placeholder="Username"
-              style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #999', fontSize: 13, background: 'transparent', color: 'inherit', width: 120 }}
-            />
-            <input
-              type="password"
-              value={loginPass}
-              onChange={(e) => setLoginPass(e.target.value)}
-              placeholder="Password"
-              style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #999', fontSize: 13, background: 'transparent', color: 'inherit', width: 120 }}
-            />
-            <button
-              onClick={() => { if (loginName.trim()) { login(loginName); setLoginName(''); setLoginPass(''); } }}
-              style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid #999', cursor: 'pointer', fontSize: 13, background: '#4a90d9', color: '#fff' }}
-            >
-              Login
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Logged-in user status — shared LoginBar component */}
+      <LoginBar />
 
       {/* Main Content Section */}
       <main className="layout-content">
@@ -133,17 +102,23 @@ function UserPosts() {
           </div>
         </section>
 
-        {/* Create New Post Section */}
-        <section className="new-post-section" style={{ margin: '16px 0' }}>
+        {/* Create New Post Section — visible but disabled when not owner */}
+        <section className="new-post-section" style={{ margin: '16px 0', opacity: isOwner ? 1 : 0.4 }}>
           <h2>Create a New Post</h2>
           <p style={{ fontSize: 12, opacity: 0.6, margin: '2px 0 8px' }}>
-            Author will be auto-tagged as <strong>{user.shortName}</strong> (from UserContext)
+            {isOwner
+              ? <>Author will be auto-tagged as <strong>{user.shortName}</strong> (from UserContext)</>
+              : loggedInUser
+              ? <>Login as <strong>{user.fullName}</strong> to create posts for this user</>
+              : <>Login to create posts</>
+            }
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input
               value={draftTitle}
               onChange={(e) => setDraftTitle(e.target.value)}
               placeholder="Post title…"
+              disabled={!isOwner}
               style={{
                 padding: '6px 10px',
                 borderRadius: 4,
@@ -158,6 +133,7 @@ function UserPosts() {
               onChange={(e) => setDraftBody(e.target.value)}
               placeholder="Post content (optional)…"
               rows={3}
+              disabled={!isOwner}
               style={{
                 padding: '6px 10px',
                 borderRadius: 4,
@@ -170,13 +146,15 @@ function UserPosts() {
             />
             <button
               onClick={handleAddPost}
+              disabled={!isOwner}
+              title={isOwner ? 'Add post' : loggedInUser ? `Login as ${user.fullName} to add` : 'Login to add posts'}
               style={{
                 padding: '6px 14px',
                 borderRadius: 4,
                 border: '1px solid #999',
-                cursor: 'pointer',
+                cursor: isOwner ? 'pointer' : 'not-allowed',
                 fontSize: 14,
-                background: '#4a90d9',
+                background: isOwner ? '#4a90d9' : '#999',
                 color: '#fff',
                 alignSelf: 'flex-start',
               }}
@@ -233,14 +211,29 @@ function UserPosts() {
                   </p>
                 )}
                 <div className="post-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button
-                    onClick={() => likePost(post.id, loggedInUser)}
-                    disabled={!loggedInUser}
-                    title={loggedInUser ? `Like as ${loggedInUser}` : 'Login to like'}
-                    style={{ cursor: loggedInUser ? 'pointer' : 'not-allowed', opacity: loggedInUser ? 1 : 0.5 }}
-                  >
-                    👍 Like ({(post.likedBy || []).length})
-                  </button>
+                  {(() => {
+                    const isOwnPost = isSamePerson(loggedInUser, post.author);
+                    const alreadyLiked = loggedInUser && (post.likedBy || []).includes(loggedInUser);
+                    const canLike = loggedInUser && !isOwnPost && !alreadyLiked;
+                    return (
+                      <button
+                        onClick={() => likePost(post.id, loggedInUser)}
+                        disabled={!canLike}
+                        title={
+                          !loggedInUser ? 'Login to like'
+                          : isOwnPost ? 'Cannot like your own post'
+                          : alreadyLiked ? 'Already liked'
+                          : `Like as ${loggedInUser}`
+                        }
+                        style={{
+                          cursor: canLike ? 'pointer' : 'not-allowed',
+                          opacity: canLike ? 1 : 0.5,
+                        }}
+                      >
+                        👍 {alreadyLiked ? 'Liked' : 'Like'} ({(post.likedBy || []).length})
+                      </button>
+                    );
+                  })()}
                   <button
                     onClick={() => deletePost(post.id)}
                     style={{ color: '#d9534f', cursor: 'pointer' }}

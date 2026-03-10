@@ -4,6 +4,8 @@ import { useTheme, themeStyles } from '../ThemeContext.jsx';
 import { useApp } from '../AppContext.jsx';
 import { usePosts } from './PostContext.jsx';
 import { useLogin } from '../LoginContext.jsx';
+import { isSamePerson } from '../users.js';
+import LoginBar from '../LoginBar.jsx';
 import ThemeButton from '../ThemeButton.jsx';
 
 /**
@@ -71,6 +73,9 @@ function PostDetail() {
         <ThemeButton />
       </header>
 
+      {/* Logged-in user status — shared LoginBar component */}
+      <LoginBar />
+
       <article>
         <h1 style={{ margin: '0 0 8px' }}>{post.title}</h1>
         <p style={{ fontSize: 13, opacity: 0.6, margin: '0 0 16px' }}>
@@ -82,12 +87,30 @@ function PostDetail() {
         </div>
 
         <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(128,128,128,0.3)', display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => likePost(post.id, loggedInUser)}
-            disabled={!loggedInUser}
-            title={loggedInUser ? `Like as ${loggedInUser}` : 'Login to like'}
-            style={{ cursor: loggedInUser ? 'pointer' : 'not-allowed', fontSize: 14, opacity: loggedInUser ? 1 : 0.5 }}
-          >
+          {(() => {
+            const isOwnPost = isSamePerson(loggedInUser, post.author);
+            const alreadyLiked = loggedInUser && (post.likedBy || []).includes(loggedInUser);
+            const canLike = loggedInUser && !isOwnPost && !alreadyLiked;
+            return (
+              <button
+                onClick={() => likePost(post.id, loggedInUser)}
+                disabled={!canLike}
+                title={
+                  !loggedInUser ? 'Login to like'
+                  : isOwnPost ? 'Cannot like your own post'
+                  : alreadyLiked ? 'Already liked'
+                  : `Like as ${loggedInUser}`
+                }
+                style={{
+                  cursor: canLike ? 'pointer' : 'not-allowed',
+                  fontSize: 14,
+                  opacity: canLike ? 1 : 0.5,
+                }}
+              >
+                👍 {alreadyLiked ? 'Liked' : 'Like'} ({(post.likedBy || []).length})
+              </button>
+            );
+          })()}
             👍 Like ({(post.likedBy || []).length})
           </button>
           <button

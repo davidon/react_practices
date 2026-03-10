@@ -35,3 +35,45 @@ export const USERS = [
   },
 ];
 
+// ── LOOKUP HELPERS ──────────────────────────────────────────────────
+// Login stores fullName (e.g., "Alex Johnson").
+// Posts store author as shortName (e.g., "Alex").
+// These helpers bridge the gap for ownership and self-like checks.
+// ────────────────────────────────────────────────────────────────────
+
+/** Map fullName → shortName for quick lookup. */
+const fullToShort = Object.fromEntries(USERS.map(u => [u.fullName, u.shortName]));
+
+/** Map shortName → fullName for quick lookup. */
+const shortToFull = Object.fromEntries(USERS.map(u => [u.shortName, u.fullName]));
+
+/**
+ * Check if a logged-in user (fullName) is the same person as an author (shortName).
+ * Also handles cases where author might be a truncated name like "Ale J."
+ * by checking if the fullName starts with the first 3 chars of the author.
+ *
+ * @param {string|null} loggedInFullName - e.g., "Alex Johnson"
+ * @param {string} author - e.g., "Alex" or "Ale J." or "Alex Johnson"
+ * @returns {boolean}
+ */
+export function isSamePerson(loggedInFullName, author) {
+  if (!loggedInFullName || !author) return false;
+  // Direct match (fullName === fullName)
+  if (loggedInFullName === author) return true;
+  // loggedInFullName's shortName matches author
+  const short = fullToShort[loggedInFullName];
+  if (short && short === author) return true;
+  // author is a fullName and loggedIn is matched via shortName
+  const authorFull = shortToFull[author];
+  if (authorFull && authorFull === loggedInFullName) return true;
+  return false;
+}
+
+/**
+ * Get the shortName for a logged-in fullName.
+ * Returns null if not a known user.
+ */
+export function getShortName(fullName) {
+  return fullToShort[fullName] || null;
+}
+

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback } 
 import { useUser } from '../UserContext.jsx';
 import { loadPosts, savePosts } from './postsDB.js';
 import { createSeedPosts, sanitisePosts } from '../proverbs.js';
+import { isSamePerson } from '../users.js';
 
 // ═══════════════════════════════════════════════════════════════════════
 // POST CONTEXT
@@ -97,12 +98,14 @@ export function PostProvider({ children }) {
 
   // likePost records which logged-in user liked the post.
   // Each user can only like a post once (duplicate prevented).
+  // Cannot like your own post (defense in depth — UI also prevents it).
   // Pass the logged-in username from the UI layer.
   const likePost = useCallback((postId, username) => {
     if (!username) return; // must be logged in
     setPosts(prev =>
       prev.map(post => {
         if (post.id !== postId) return post;
+        if (isSamePerson(username, post.author)) return post; // can't like own post
         const likedBy = post.likedBy || [];
         if (likedBy.includes(username)) return post; // already liked
         const newLikedBy = [...likedBy, username];

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './AppContext.jsx';
+import { LoginProvider, useLogin } from './LoginContext.jsx';
+import LoginBar from './LoginBar.jsx';
 import { USERS } from './users.js';
 import { loadPosts, savePosts } from './LayoutMultiProviders/postsDB.js';
 import { sanitisePosts } from './proverbs.js';
@@ -13,16 +15,19 @@ import { sanitisePosts } from './proverbs.js';
  *
  * - User names are clickable → overlay popup with user details
  * - Post titles link to: LayoutMultiProviders/index.html#/user/:userId/post/:postId
- * - When a user has no posts → shows an input box to add a quick post
+ * - Login form (username + password + button) lives here only
+ * - Logged-in user info shown via shared LoginBar component
+ * - Quick-add post only enabled when logged-in user matches the card user
  *
- * NOTE: Proverbs are NOT shown on the summary page. They are ephemeral
- * placeholders only visible on the detail page when a user has no real posts.
+ * NOTE: Proverbs are NOT shown on the summary page.
  */
 export default function App() {
   return (
-    <AppProvider>
-      <SummaryDashboard />
-    </AppProvider>
+    <LoginProvider>
+      <AppProvider>
+        <SummaryDashboard />
+      </AppProvider>
+    </LoginProvider>
   );
 }
 
@@ -32,9 +37,22 @@ export default function App() {
  */
 function SummaryDashboard() {
   const { companyName } = useApp();
+  const { loggedInUser, login } = useLogin();
 
   // State: overlay popup for user details
   const [selectedUser, setSelectedUser] = useState(null);
+
+  // State: login form (only shown when not logged in)
+  const [loginName, setLoginName] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+
+  const handleLogin = () => {
+    if (loginName.trim()) {
+      login(loginName);
+      setLoginName('');
+      setLoginPass('');
+    }
+  };
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: 800, margin: '0 auto' }}>
@@ -43,10 +61,48 @@ function SummaryDashboard() {
         {companyName} · All users and posts at a glance
       </p>
 
+      {/* Login Bar — shared component showing logged-in status */}
+      <LoginBar />
+
+      {/* Login Form — only on summary page, only when not logged in */}
+      {!loggedInUser && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          marginBottom: 16, padding: 12,
+          border: '1px solid #ccc', borderRadius: 8, background: '#f9f9f9',
+        }}>
+          <input
+            value={loginName}
+            onChange={(e) => setLoginName(e.target.value)}
+            placeholder="Username"
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: 13, width: 140 }}
+          />
+          <input
+            type="password"
+            value={loginPass}
+            onChange={(e) => setLoginPass(e.target.value)}
+            placeholder="Password"
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: 13, width: 140 }}
+          />
+          <button
+            onClick={handleLogin}
+            style={{
+              padding: '6px 14px', borderRadius: 4, border: '1px solid #ccc',
+              cursor: 'pointer', fontSize: 13, background: '#4a90d9', color: '#fff',
+            }}
+          >
+            Login
+          </button>
+        </div>
+      )}
+
       {USERS.map((user) => (
         <UserSummaryCard
           key={user.id}
           user={user}
+          loggedInUser={loggedInUser}
           onUserClick={() => setSelectedUser(user)}
         />
       ))}
@@ -68,12 +124,16 @@ function SummaryDashboard() {
  * UserSummaryCard — shows one user's name (clickable) + posts loaded from IndexedDB.
  * If no posts exist, shows a quick-add input box instead of fake data.
  */
-function UserSummaryCard({ user, onUserClick }) {
+function UserSummaryCard({ user, loggedInUser, onUserClick }) {
   const [posts, setPosts] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [quickTitle, setQuickTitle] = useState('');
 
   const detailBase = 'LayoutMultiProviders/index.html#';
+
+  // Can this logged-in user add posts to this card?
+  // loggedInUser is a fullName (e.g., "Alex Johnson"), compare against user.fullName.
+  const isOwner = loggedInUser && loggedInUser === user.fullName;
 
   // Load posts from IndexedDB — same DB the detail page uses.
   // Only real user-created posts are shown; proverbs are stripped out.
@@ -135,36 +195,46 @@ function UserSummaryCard({ user, onUserClick }) {
 
       {!loaded ? (
         <p style={{ fontSize: 13, color: '#999' }}>Loading posts…</p>
-      ) : posts.length > 0 ? (
-        <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
-          {posts.map((post) => (
-            <li key={post.id} style={{ padding: '4px 0', fontSize: 14 }}>
-              {post.title}
-            </li>
-          ))}
-        </ul>
       ) : (
-        /* No posts — show quick-add input instead of fake data */
-        <div>
-          <p style={{ fontSize: 13, color: '#999', margin: '0 0 8px' }}>
-            No posts yet. Add one:
-          </p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              value={quickTitle}
-              onChange={(e) => setQuickTitle(e.target.value)}
-              placeholder="Post title…"
-              onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
-              style={{ flex: 1, padding: '4px 8px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc' }}
-            />
-            <button
-              onClick={handleQuickAdd}
-              style={{ padding: '4px 12px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#4a90d9', color: '#fff' }}
-            >
-              Add
-            </button>
+        <>
+          {posts.length > 0 ? (
+            <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
+              {posts.map((post) => (
+                <li key={post.id} style={{ padding: '4px 0', fontSize: 14 }}>
+                  {post.title}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ fontSize: 13, color: '#999', margin: '0 0 8px' }}>No posts yet.</p>
+          )}
+
+          {/* Quick-add — always visible, disabled when not owner */}
+          <div style={{ marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 8, opacity: isOwner ? 1 : 0.4 }}>
+              <input
+                value={quickTitle}
+                onChange={(e) => setQuickTitle(e.target.value)}
+                placeholder="Post title…"
+                disabled={!isOwner}
+                onKeyDown={(e) => e.key === 'Enter' && isOwner && handleQuickAdd()}
+                style={{ flex: 1, padding: '4px 8px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc' }}
+              />
+              <button
+                onClick={handleQuickAdd}
+                disabled={!isOwner}
+                title={isOwner ? 'Add post' : loggedInUser ? `Login as ${user.fullName} to add` : 'Login to add posts'}
+                style={{
+                  padding: '4px 12px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc',
+                  cursor: isOwner ? 'pointer' : 'not-allowed',
+                  background: isOwner ? '#4a90d9' : '#ccc', color: '#fff',
+                }}
+              >
+                Add
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* ALL POSTS link — disabled when user has no posts */}
