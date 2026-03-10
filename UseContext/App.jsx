@@ -84,6 +84,16 @@ function SummaryDashboard() {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(USERS.length / PAGE_SIZE);
   const pagedUsers = USERS.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Responsive: detect wide screen (≥900px) for horizontal layout
+  const [isWide, setIsWide] = useState(() => window.innerWidth >= 900);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 900px)');
+    const handler = (e) => setIsWide(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   const handleLogin = () => {
     if (loginName.trim()) {
       login(loginName);
@@ -92,8 +102,26 @@ function SummaryDashboard() {
     }
   };
 
+  const canPrev = page > 0;
+  const canNext = page < totalPages - 1;
+
+  // Big arrow button style (shared)
+  const arrowBtnStyle = (enabled) => ({
+    background: 'none',
+    border: 'none',
+    fontSize: 48,
+    color: enabled ? '#4a90d9' : '#ddd',
+    cursor: enabled ? 'pointer' : 'default',
+    padding: '0 8px',
+    userSelect: 'none',
+    lineHeight: 1,
+    flexShrink: 0,
+    alignSelf: 'center',
+    transition: 'color 0.2s',
+  });
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: 800, margin: '0 auto' }}>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: isWide ? 1200 : 800, margin: '0 auto' }}>
       <h1 style={{ textAlign: 'center' }}>useContext — Summary</h1>
       <p style={{ textAlign: 'center', color: '#666' }}>
         {companyName} · All users and posts at a glance
@@ -136,43 +164,56 @@ function SummaryDashboard() {
         </div>
       )}
 
-      {pagedUsers.map((user) => (
-        <UserSummaryCard
-          key={user.id}
-          user={user}
-          loggedInUser={loggedInUser}
-          onUserClick={() => setSelectedUser(user)}
-        />
-      ))}
-
-      {/* Pagination controls */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, margin: '16px 0' }}>
+      {/* ── USER CARDS with side arrows ──────────────────────────── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        gap: 0,
+      }}>
+        {/* Left arrow */}
         <button
-          onClick={() => setPage(p => p - 1)}
-          disabled={page === 0}
-          style={{
-            padding: '6px 14px', fontSize: 16, borderRadius: 4, border: '1px solid #ccc',
-            cursor: page === 0 ? 'not-allowed' : 'pointer',
-            opacity: page === 0 ? 0.4 : 1,
-          }}
+          onClick={() => canPrev && setPage(p => p - 1)}
+          disabled={!canPrev}
+          style={arrowBtnStyle(canPrev)}
+          title={canPrev ? 'Previous page' : ''}
         >
-          ← Prev
+          ‹
         </button>
-        <span style={{ fontSize: 13, color: '#666' }}>
-          Page {page + 1} of {totalPages}
-        </span>
+
+        {/* Cards container — horizontal when wide, vertical when narrow */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: isWide ? 'row' : 'column',
+          gap: isWide ? 16 : 0,
+          minWidth: 0,
+        }}>
+          {pagedUsers.map((user) => (
+            <div key={user.id} style={{ flex: isWide ? '1 1 0' : 'none', minWidth: 0 }}>
+              <UserSummaryCard
+                user={user}
+                loggedInUser={loggedInUser}
+                onUserClick={() => setSelectedUser(user)}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Right arrow */}
         <button
-          onClick={() => setPage(p => p + 1)}
-          disabled={page >= totalPages - 1}
-          style={{
-            padding: '6px 14px', fontSize: 16, borderRadius: 4, border: '1px solid #ccc',
-            cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
-            opacity: page >= totalPages - 1 ? 0.4 : 1,
-          }}
+          onClick={() => canNext && setPage(p => p + 1)}
+          disabled={!canNext}
+          style={arrowBtnStyle(canNext)}
+          title={canNext ? 'Next page' : ''}
         >
-          Next →
+          ›
         </button>
       </div>
+
+      {/* Page indicator */}
+      <p style={{ textAlign: 'center', fontSize: 12, color: '#999', margin: '8px 0 0' }}>
+        {page + 1} / {totalPages}
+      </p>
 
       {/* Overlay popup for user details */}
       {selectedUser && (
@@ -259,6 +300,10 @@ function UserSummaryCard({ user, loggedInUser, onUserClick }) {
         padding: 16,
         border: '1px solid #ccc',
         borderRadius: 8,
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        boxSizing: 'border-box',
       }}
     >
       {/* User name — clickable to open overlay popup */}
