@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { createContext, useContext, useState, useMemo, useCallback } from 'react';
 
 // ═══════════════════════════════════════════════════════════════════════
 // LOGIN CONTEXT
@@ -8,27 +8,29 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback } 
 //
 // AUTHENTICATION:
 //   This is a DEMO login — any username is accepted, password is not
-//   checked. The purpose is to practise Context + storage, not
+//   checked. The purpose is to practise Context + sessionStorage, not
 //   to implement real authentication.
 //
-// PERSISTENCE — localStorage:
-//   localStorage is used so that the login state is shared across ALL
-//   tabs and survives page navigations between separate HTML files
-//   (summary page → detail page are different .html entry points).
+// PERSISTENCE — sessionStorage:
+//   Now that the app is a SINGLE PAGE APPLICATION (one index.html with
+//   HashRouter), sessionStorage is the correct choice:
 //
-//   sessionStorage would NOT work here because:
-//     1. It is per-tab — opening a link in a new tab loses the session
-//     2. In some browsers, navigating between separate HTML files
-//        (not SPA routing) can lose sessionStorage
+//     ┌────────────────────┬──────────────────┬──────────────────┐
+//     │                    │  sessionStorage   │  localStorage    │
+//     ├────────────────────┼──────────────────┼──────────────────┤
+//     │ Lifetime           │ Current tab only  │ Forever (manual) │
+//     │ Shared across tabs │ No — per tab      │ Yes — all tabs   │
+//     │ Cleared on close   │ Yes (tab close)   │ No               │
+//     │ SPA route changes  │ Survives ✅       │ Survives ✅      │
+//     │ Cross-page nav     │ ❌ lost on new tab│ ✅ shared        │
+//     └────────────────────┴──────────────────┴──────────────────┘
 //
-//   The trade-off: localStorage persists after closing the browser.
-//   For a demo app this is acceptable. In production you'd use
-//   HTTP-only cookies or tokens with server-side expiry.
-//
-//   CROSS-TAB SYNC:
-//   When the user logs in/out in one tab, the 'storage' event fires
-//   in all OTHER tabs on the same origin. We listen for this to keep
-//   the UI in sync across tabs.
+//   Previously localStorage was used because the summary page and detail
+//   page were separate HTML files (separate page loads). Now that they
+//   are SPA routes within a single index.html, sessionStorage works:
+//     - SPA route changes do NOT lose sessionStorage (same page)
+//     - Tab close = automatic logout (desired behaviour)
+//     - Each tab has its own independent login (isolation)
 //
 // PROVIDER PLACEMENT:
 //   LoginProvider is placed OUTSIDE the user-specific provider chain
@@ -39,39 +41,27 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback } 
 //
 // ═══════════════════════════════════════════════════════════════════════
 
-const STORAGE_KEY = 'loggedInUser';
+const SESSION_KEY = 'loggedInUser';
 
 const LoginContext = createContext(undefined);
 
 export function LoginProvider({ children }) {
-  // Initialise from localStorage — shared across tabs and page navigations
+  // Initialise from sessionStorage — survives SPA route changes,
+  // clears when the tab closes.
   const [loggedInUser, setLoggedInUser] = useState(() => {
-    return localStorage.getItem(STORAGE_KEY) || null;
+    return sessionStorage.getItem(SESSION_KEY) || null;
   });
-
-  // ── CROSS-TAB SYNC ────────────────────────────────────────────────
-  // When another tab changes localStorage, the 'storage' event fires
-  // in THIS tab. Update our React state to stay in sync.
-  useEffect(() => {
-    const handleStorage = (e) => {
-      if (e.key === STORAGE_KEY) {
-        setLoggedInUser(e.newValue || null);
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
 
   const login = useCallback((username) => {
     const trimmed = username.trim();
     if (trimmed) {
-      localStorage.setItem(STORAGE_KEY, trimmed);
+      sessionStorage.setItem(SESSION_KEY, trimmed);
       setLoggedInUser(trimmed);
     }
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
     setLoggedInUser(null);
   }, []);
 
@@ -93,5 +83,6 @@ export function useLogin() {
     throw new Error('useLogin must be used within a LoginProvider');
   }
   return context;
+}
 }
 
