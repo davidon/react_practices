@@ -61,6 +61,7 @@ const PROVERB_TITLES = new Set(PROVERBS.map(p => p.title));
  *     was stored as the title field instead of proverb.title.
  *  2. Tags old proverb posts that were saved before the `isProverb` flag
  *     was introduced, so they correctly appear under "My Proverbs".
+ *  3. Adds missing `likedBy` array for posts saved before per-user likes.
  */
 export function sanitisePosts(posts) {
   return posts.map(p => {
@@ -71,6 +72,10 @@ export function sanitisePosts(posts) {
     // Tag old proverbs missing the isProverb flag
     if (!p.isProverb && PROVERB_TITLES.has(p.title)) {
       p = { ...p, isProverb: true };
+    }
+    // Add missing likedBy array for old posts
+    if (!Array.isArray(p.likedBy)) {
+      p = { ...p, likedBy: [], likes: 0 };
     }
     return p;
   });

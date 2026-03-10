@@ -2,6 +2,7 @@ import { Routes, Route, useParams } from 'react-router-dom';
 import { AppProvider } from '../AppContext.jsx';
 import { ThemeProvider } from '../ThemeContext.jsx';
 import { UserProvider } from '../UserContext.jsx';
+import { LoginProvider } from '../LoginContext.jsx';
 import { USERS } from '../users.js';
 import { PostProvider } from './PostContext.jsx';
 import UserPosts from './UserPosts.jsx';
@@ -29,17 +30,18 @@ import PostDetail from './PostDetail.jsx';
  */
 export default function App() {
   return (
-    /* AppProvider wraps Routes — it doesn't depend on URL params.
-     * Routes must be OUTSIDE the user-specific providers because
-     * useParams() only works inside <Routes>, and the providers
-     * need the userId to load the correct data. */
-    <AppProvider>
-      <Routes>
-        <Route path="/" element={<UserPage />} />
-        <Route path="/user/:userId" element={<UserPage />} />
-        <Route path="/user/:userId/post/:postId" element={<UserPage />} />
-      </Routes>
-    </AppProvider>
+    /* LoginProvider wraps everything — the logged-in user is independent
+     * of the "viewed" user (whose posts you're looking at).
+     * Uses sessionStorage: cleared when the tab closes. */
+    <LoginProvider>
+      <AppProvider>
+        <Routes>
+          <Route path="/" element={<UserPage />} />
+          <Route path="/user/:userId" element={<UserPage />} />
+          <Route path="/user/:userId/post/:postId" element={<UserPage />} />
+        </Routes>
+      </AppProvider>
+    </LoginProvider>
   );
 }
 

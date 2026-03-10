@@ -3,6 +3,7 @@ import { useUser } from '../UserContext.jsx';
 import { useTheme, themeStyles } from '../ThemeContext.jsx';
 import { useApp } from '../AppContext.jsx';
 import { usePosts } from './PostContext.jsx';
+import { useLogin } from '../LoginContext.jsx';
 import ThemeButton from '../ThemeButton.jsx';
 
 /**
@@ -18,12 +19,32 @@ import ThemeButton from '../ThemeButton.jsx';
  *   useUser()  → author info
  *   usePosts() → post data + likePost
  */
+/** Truncate: "Alex Johnson" → "Ale J." */
+function truncateName(name) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 3);
+  const first = parts[0].slice(0, 3);
+  const lastInitial = parts[parts.length - 1][0].toUpperCase();
+  return `${first} ${lastInitial}.`;
+}
+
+function formatLikedBy(likedBy) {
+  if (!likedBy || likedBy.length === 0) return null;
+  const MAX = 5;
+  const shown = likedBy.slice(0, MAX).map(truncateName);
+  const remaining = likedBy.length - MAX;
+  return remaining > 0
+    ? `${shown.join(', ')} +${remaining} more`
+    : shown.join(', ');
+}
+
 function PostDetail() {
   const { postId } = useParams();
   const user = useUser();
   const { theme } = useTheme();
   const { companyName } = useApp();
   const { posts, likePost, deletePost } = usePosts();
+  const { loggedInUser } = useLogin();
   const styles = themeStyles[theme];
   const navigate = useNavigate();
 
@@ -61,8 +82,13 @@ function PostDetail() {
         </div>
 
         <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(128,128,128,0.3)', display: 'flex', gap: 8 }}>
-          <button onClick={() => likePost(post.id)} style={{ cursor: 'pointer', fontSize: 14 }}>
-            👍 Like ({post.likes})
+          <button
+            onClick={() => likePost(post.id, loggedInUser)}
+            disabled={!loggedInUser}
+            title={loggedInUser ? `Like as ${loggedInUser}` : 'Login to like'}
+            style={{ cursor: loggedInUser ? 'pointer' : 'not-allowed', fontSize: 14, opacity: loggedInUser ? 1 : 0.5 }}
+          >
+            👍 Like ({(post.likedBy || []).length})
           </button>
           <button
             onClick={() => { deletePost(post.id); navigate(backLink); }}
@@ -71,6 +97,12 @@ function PostDetail() {
             🗑️ Delete
           </button>
         </div>
+        {/* Liked-by names */}
+        {formatLikedBy(post.likedBy) && (
+          <p style={{ margin: '6px 0 0', fontSize: 12, opacity: 0.6 }}>
+            ❤️ {formatLikedBy(post.likedBy)}
+          </p>
+        )}
       </article>
 
       <footer style={{ marginTop: '1.5rem', opacity: 0.5, fontSize: 12 }}>

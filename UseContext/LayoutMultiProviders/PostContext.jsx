@@ -22,6 +22,9 @@ import { createSeedPosts, sanitisePosts } from '../proverbs.js';
 //   Only real user-created posts are stored in IndexedDB (database:
 //   "PostsDB", store: "posts", keyed by userId).
 //
+//   Each post stores a `likedBy` array of usernames (logged-in users
+//   who clicked Like). The `likes` count is derived from likedBy.length.
+//
 // PROVERBS:
 //   Proverbs are ephemeral — randomly picked from 20 pre-defined
 //   proverbs on every mount (page refresh). They are NOT persisted
@@ -88,14 +91,23 @@ export function PostProvider({ children }) {
       body,
       author: user.shortName,
       likes: 0,
+      likedBy: [],   // array of logged-in usernames who liked this post
     }]);
   }, [user.shortName]);
 
-  const likePost = useCallback((postId) => {
+  // likePost records which logged-in user liked the post.
+  // Each user can only like a post once (duplicate prevented).
+  // Pass the logged-in username from the UI layer.
+  const likePost = useCallback((postId, username) => {
+    if (!username) return; // must be logged in
     setPosts(prev =>
-      prev.map(post =>
-        post.id === postId ? { ...post, likes: post.likes + 1 } : post
-      )
+      prev.map(post => {
+        if (post.id !== postId) return post;
+        const likedBy = post.likedBy || [];
+        if (likedBy.includes(username)) return post; // already liked
+        const newLikedBy = [...likedBy, username];
+        return { ...post, likedBy: newLikedBy, likes: newLikedBy.length };
+      })
     );
   }, []);
 
