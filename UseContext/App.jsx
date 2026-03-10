@@ -105,6 +105,14 @@ function SummaryDashboard() {
   const canPrev = page > 0;
   const canNext = page < totalPages - 1;
 
+  // Jump to a page so that a specific user is the first card shown
+  const jumpToUser = (userId) => {
+    const idx = USERS.findIndex(u => u.id === userId);
+    if (idx === -1) return;
+    const targetPage = Math.floor(idx / PAGE_SIZE);
+    setPage(targetPage);
+  };
+
   // Big arrow button style (shared)
   const arrowBtnStyle = (enabled) => ({
     background: 'none',
@@ -122,6 +130,9 @@ function SummaryDashboard() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: isWide ? 1200 : 800, margin: '0 auto' }}>
+      {/* Floating user navigation sidebar */}
+      <UserSidebar users={USERS} onSelectUser={jumpToUser} />
+
       <h1 style={{ textAlign: 'center' }}>useContext — Summary</h1>
       <p style={{ textAlign: 'center', color: '#666' }}>
         {companyName} · All users and posts at a glance
@@ -224,6 +235,97 @@ function SummaryDashboard() {
       )}
 
       <AnnouncementManager />
+    </div>
+  );
+}
+
+/**
+ * UserSidebar — floating vertical bar at top-left with "USERS" label.
+ * Click the triangle to expand and see all users. Click a user to jump.
+ */
+function UserSidebar({ users, onSelectUser }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 12,
+      left: 0,
+      zIndex: 900,
+      display: 'flex',
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+    }}>
+      {/* Collapsed bar — vertical "USERS" label */}
+      <div
+        style={{
+          background: '#4a90d9',
+          color: '#fff',
+          padding: '14px 6px',
+          borderRadius: '0 6px 6px 0',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          boxShadow: '2px 2px 8px rgba(0,0,0,0.15)',
+          userSelect: 'none',
+        }}
+        onClick={() => setExpanded(prev => !prev)}
+        title={expanded ? 'Collapse' : 'Expand user list'}
+      >
+        {/* Rotated "USERS" text — anti-clockwise 90° */}
+        <span style={{
+          writingMode: 'vertical-rl',
+          transform: 'rotate(180deg)',
+          fontSize: 12,
+          fontWeight: 'bold',
+          letterSpacing: 2,
+        }}>
+          USERS
+        </span>
+        {/* Triangle indicator */}
+        <span style={{
+          fontSize: 10,
+          transition: 'transform 0.2s',
+          transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+        }}>
+          ▶
+        </span>
+      </div>
+
+      {/* Expanded panel — user list */}
+      {expanded && (
+        <div style={{
+          background: '#fff',
+          border: '1px solid #ccc',
+          borderRadius: '0 8px 8px 0',
+          boxShadow: '2px 2px 12px rgba(0,0,0,0.12)',
+          padding: '8px 0',
+          minWidth: 160,
+          maxHeight: '80vh',
+          overflowY: 'auto',
+        }}>
+          {users.map(u => (
+            <div
+              key={u.id}
+              onClick={() => { onSelectUser(u.id); setExpanded(false); }}
+              style={{
+                padding: '8px 16px',
+                cursor: 'pointer',
+                fontSize: 13,
+                borderBottom: '1px solid #f0f0f0',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#eef4fc'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <div style={{ fontWeight: 500, color: '#333' }}>{u.fullName}</div>
+              <div style={{ fontSize: 11, color: '#999' }}>{u.team} · {u.title}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
