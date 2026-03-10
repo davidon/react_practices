@@ -8,6 +8,7 @@ import { PostProvider } from './LayoutMultiProviders/PostContext.jsx';
 import LoginBar from './LoginBar.jsx';
 import { USERS } from './users.js';
 import { loadPosts, savePosts } from './LayoutMultiProviders/postsDB.js';
+import { cloudSavePosts } from './LayoutMultiProviders/cloudDB.js';
 import { sanitisePosts, PROVERBS } from './proverbs.js';
 import { fetchProverbs } from './proverbsAPI.js';
 import UserPosts from './LayoutMultiProviders/UserPosts.jsx';
@@ -242,9 +243,12 @@ function UserSummaryCard({ user, loggedInUser, onUserClick }) {
     const updated = [...posts, newPost];
     setPosts(updated);
     setQuickTitle('');
-    // Persist to IndexedDB so the detail page sees it too
+    // Persist to IndexedDB + cloud so the detail page sees it too
     savePosts(user.id, updated).catch(err => {
       console.error(`Failed to save quick post for user ${user.id}:`, err);
+    });
+    cloudSavePosts(user.id, updated).catch(err => {
+      console.warn(`Failed to save quick post to cloud for user ${user.id}:`, err.message);
     });
   };
 

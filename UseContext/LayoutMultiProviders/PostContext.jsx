@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '../UserContext.jsx';
 import { loadPosts, savePosts } from './postsDB.js';
+import { cloudLoadPosts, cloudSavePosts } from './cloudDB.js';
 import { createSeedPosts, sanitisePosts } from '../proverbs.js';
 import { isSamePerson } from '../users.js';
 import { fetchProverbs } from '../proverbsAPI.js';
@@ -21,8 +22,12 @@ import { fetchProverbs } from '../proverbsAPI.js';
 //           → PostProvider
 //
 // PERSISTENCE:
-//   Only real user-created posts are stored in IndexedDB (database:
-//   "PostsDB", store: "posts", keyed by userId).
+//   Posts are stored in TWO places (dual-write):
+//     1. IndexedDB (local) — fast, works offline, browser-scoped
+//     2. JSONBlob.com (cloud) — free, no signup, shareable across devices
+//
+//   On load: try cloud first → fall back to IndexedDB → empty
+//   On save: write to both IndexedDB and cloud in parallel
 //
 //   Each post stores a `likedBy` array of usernames (logged-in users
 //   who clicked Like). The `likes` count is derived from likedBy.length.
@@ -65,38 +70,53 @@ export function PostProvider({ children }) {
     return () => { cancelled = true; };
   }, [user.shortName]);
 
-  // ── LOAD from IndexedDB on mount ──────────────────────────────────
+  // ── LOAD: cloud first → IndexedDB fallback ─────────────────────────
   // Only real user-created posts are loaded. Proverbs with isProverb
   // flag from old data are stripped out during load.
   useEffect(() => {
     let cancelled = false;
 
-    loadPosts(user.id)
-      .then(saved => {
-        if (cancelled) return;
-        if (saved && saved.length > 0) {
-          // Sanitise corrupted data, then strip out old proverbs
+    async function load() {
+      try {
+        // Try cloud first
+        const cloudPosts = await cloudLoadPosts(user.id);
+        if (!cancelled && cloudPosts && cloudPosts.length > 0) {
+          const sanitised = sanitisePosts(cloudPosts);
+          setPosts(sanitised.filter(p => !p.isProverb));
+          setLoaded(true);
+          return;
+        }
+      } catch (err) {
+        console.warn('Cloud load failed, trying IndexedDB:', err.message);
+      }
+
+      try {
+        // Fall back to IndexedDB
+        const saved = await loadPosts(user.id);
+        if (!cancelled && saved && saved.length > 0) {
           const sanitised = sanitisePosts(saved);
           setPosts(sanitised.filter(p => !p.isProverb));
         }
-        // If no saved posts → posts stays [] (proverbs shown instead)
-        setLoaded(true);
-      })
-      .catch(err => {
-        console.error('Failed to load posts from IndexedDB:', err);
-        if (cancelled) return;
-        // IndexedDB failed — posts stays empty, proverbs shown
-        setLoaded(true);
-      });
+      } catch (err) {
+        console.error('IndexedDB load also failed:', err);
+      }
 
+      if (!cancelled) setLoaded(true);
+    }
+
+    load();
     return () => { cancelled = true; };
   }, [user.id, user.shortName]);
 
-  // ── PERSIST to IndexedDB on every change (after initial load) ─────
+  // ── PERSIST: dual-write to IndexedDB + cloud on every change ───────
   useEffect(() => {
     if (loaded) {
+      // Write to both in parallel — neither blocks the other
       savePosts(user.id, posts).catch(err => {
         console.error('Failed to save posts to IndexedDB:', err);
+      });
+      cloudSavePosts(user.id, posts).catch(err => {
+        console.warn('Failed to save posts to cloud:', err.message);
       });
     }
   }, [loaded, user.id, posts]);
