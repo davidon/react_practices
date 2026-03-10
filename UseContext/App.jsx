@@ -77,6 +77,11 @@ function SummaryDashboard() {
   const [loginName, setLoginName] = useState('');
   const [loginPass, setLoginPass] = useState('');
 
+  // State: pagination — 3 users per page
+  const PAGE_SIZE = 3;
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(USERS.length / PAGE_SIZE);
+  const pagedUsers = USERS.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const handleLogin = () => {
     if (loginName.trim()) {
       login(loginName);
@@ -129,7 +134,7 @@ function SummaryDashboard() {
         </div>
       )}
 
-      {USERS.map((user) => (
+      {pagedUsers.map((user) => (
         <UserSummaryCard
           key={user.id}
           user={user}
@@ -137,6 +142,35 @@ function SummaryDashboard() {
           onUserClick={() => setSelectedUser(user)}
         />
       ))}
+
+      {/* Pagination controls */}
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, margin: '16px 0' }}>
+        <button
+          onClick={() => setPage(p => p - 1)}
+          disabled={page === 0}
+          style={{
+            padding: '6px 14px', fontSize: 16, borderRadius: 4, border: '1px solid #ccc',
+            cursor: page === 0 ? 'not-allowed' : 'pointer',
+            opacity: page === 0 ? 0.4 : 1,
+          }}
+        >
+          ← Prev
+        </button>
+        <span style={{ fontSize: 13, color: '#666' }}>
+          Page {page + 1} of {totalPages}
+        </span>
+        <button
+          onClick={() => setPage(p => p + 1)}
+          disabled={page >= totalPages - 1}
+          style={{
+            padding: '6px 14px', fontSize: 16, borderRadius: 4, border: '1px solid #ccc',
+            cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
+            opacity: page >= totalPages - 1 ? 0.4 : 1,
+          }}
+        >
+          Next →
+        </button>
+      </div>
 
       {/* Overlay popup for user details */}
       {selectedUser && (

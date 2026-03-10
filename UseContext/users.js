@@ -33,6 +33,48 @@ export const USERS = [
     team: 'Design',
     title: 'UX Lead',
   },
+  {
+    id: 4,
+    shortName: 'Morgan',
+    fullName: 'Morgan Chen',
+    team: 'DevOps',
+    title: 'Platform Engineer',
+  },
+  {
+    id: 5,
+    shortName: 'Taylor',
+    fullName: 'Taylor Kim',
+    team: 'Frontend',
+    title: 'React Developer',
+  },
+  {
+    id: 6,
+    shortName: 'Jordan',
+    fullName: 'Jordan Patel',
+    team: 'Backend',
+    title: 'API Architect',
+  },
+  {
+    id: 7,
+    shortName: 'Casey',
+    fullName: 'Casey Brooks',
+    team: 'QA',
+    title: 'Test Engineer',
+  },
+  {
+    id: 8,
+    shortName: 'Riley',
+    fullName: 'Riley Thompson',
+    team: 'Data',
+    title: 'Data Analyst',
+  },
+  {
+    id: 9,
+    shortName: 'Avery',
+    fullName: 'Avery Nakamura',
+    team: 'Design',
+    title: 'Product Designer',
+  },
 ];
 
 // ── LOOKUP HELPERS ──────────────────────────────────────────────────
