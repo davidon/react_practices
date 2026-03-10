@@ -52,16 +52,27 @@ export function createSeedPosts(shortName, count = 2) {
   }));
 }
 
+/** Set of known proverb titles for detecting untagged proverbs in old data. */
+const PROVERB_TITLES = new Set(PROVERBS.map(p => p.title));
+
 /**
  * Sanitise posts loaded from IndexedDB.
- * Fixes corrupted data from an earlier bug where the whole proverb object
- * was stored as the title field instead of proverb.title.
+ *  1. Fixes corrupted data from an earlier bug where the whole proverb object
+ *     was stored as the title field instead of proverb.title.
+ *  2. Tags old proverb posts that were saved before the `isProverb` flag
+ *     was introduced, so they correctly appear under "My Proverbs".
  */
 export function sanitisePosts(posts) {
-  return posts.map(p =>
-    typeof p.title === 'object' && p.title !== null
-      ? { ...p, title: p.title.title || '', body: p.title.body || p.body || '' }
-      : p
-  );
+  return posts.map(p => {
+    // Fix corrupted title (object instead of string)
+    if (typeof p.title === 'object' && p.title !== null) {
+      p = { ...p, title: p.title.title || '', body: p.title.body || p.body || '' };
+    }
+    // Tag old proverbs missing the isProverb flag
+    if (!p.isProverb && PROVERB_TITLES.has(p.title)) {
+      p = { ...p, isProverb: true };
+    }
+    return p;
+  });
 }
 

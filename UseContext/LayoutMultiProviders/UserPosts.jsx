@@ -23,7 +23,7 @@ function UserPosts() {
   const user = useUser();
   const { theme } = useTheme();
   const { companyName } = useApp();
-  const { posts, addPost, likePost, hasUserPosts } = usePosts();
+  const { posts, proverbs, addPost, likePost, deletePost } = usePosts();
   const styles = themeStyles[theme];
 
   // Local state for the "new post" form
@@ -116,43 +116,68 @@ function UserPosts() {
           </div>
         </section>
 
-        {/* Posts Section — "My Proverbs" when only seed proverbs,
-             "Your Posts (N)" when user has created real posts */}
+        {/* My Proverbs — shown ONLY when there are no real posts.
+            Ephemeral: randomly picked on every page refresh, never persisted. */}
+        {posts.length === 0 && (
         <section className="posts-section">
-          <h2>{hasUserPosts ? `Your Posts (${posts.filter(p => !p.isProverb).length})` : 'My Proverbs'}</h2>
-          {posts.length > 0 ? (
-            <ul className="posts-list" style={{ listStyle: 'none', padding: 0 }}>
-              {posts.map(post => (
-                <li key={post.id} className="post-item" style={{ padding: '8px 0', borderBottom: '1px solid rgba(128,128,128,0.3)' }}>
-                  <div className="post-header">
-                    <h3 style={{ margin: '4px 0' }}>
-                      {/* Link to detail page: /user/:userId/post/:postId */}
-                      <Link
-                        to={`/user/${user.id}/post/${post.id}`}
-                        style={{ color: '#4a90d9', textDecoration: 'none' }}
-                      >
-                        {post.title}
-                      </Link>
-                    </h3>
-                    <span className="post-author">by {post.author}</span>
-                  </div>
-                  {post.body && (
-                    <p style={{ margin: '4px 0', fontSize: 13, opacity: 0.8 }}>
-                      {post.body.length > 80 ? post.body.slice(0, 80) + '…' : post.body}
-                    </p>
-                  )}
-                  <div className="post-actions">
-                    <button onClick={() => likePost(post.id)}>
-                      👍 Like ({post.likes})
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="no-posts">No posts yet. Create your first post!</p>
-          )}
+          <h2>My Proverbs</h2>
+          <p style={{ fontSize: 12, opacity: 0.5, margin: '2px 0 8px' }}>
+            Random proverbs — refreshed on every page load. Create a post to replace them!
+          </p>
+          <ul className="posts-list" style={{ listStyle: 'none', padding: 0 }}>
+            {proverbs.map(proverb => (
+              <li key={proverb.id} className="post-item" style={{ padding: '8px 0', borderBottom: '1px solid rgba(128,128,128,0.3)' }}>
+                <h3 style={{ margin: '4px 0' }}>{proverb.title}</h3>
+                {proverb.body && (
+                  <p style={{ margin: '4px 0', fontSize: 13, opacity: 0.8 }}>
+                    {proverb.body.length > 80 ? proverb.body.slice(0, 80) + '…' : proverb.body}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
+        )}
+
+        {/* Your Posts — only real user-created posts */}
+        {posts.length > 0 && (
+        <section className="posts-section">
+          <h2>Your Posts ({posts.length})</h2>
+          <ul className="posts-list" style={{ listStyle: 'none', padding: 0 }}>
+            {posts.map(post => (
+              <li key={post.id} className="post-item" style={{ padding: '8px 0', borderBottom: '1px solid rgba(128,128,128,0.3)' }}>
+                <div className="post-header">
+                  <h3 style={{ margin: '4px 0' }}>
+                    <Link
+                      to={`/user/${user.id}/post/${post.id}`}
+                      style={{ color: '#4a90d9', textDecoration: 'none' }}
+                    >
+                      {post.title}
+                    </Link>
+                  </h3>
+                  <span className="post-author">by {post.author}</span>
+                </div>
+                {post.body && (
+                  <p style={{ margin: '4px 0', fontSize: 13, opacity: 0.8 }}>
+                    {post.body.length > 80 ? post.body.slice(0, 80) + '…' : post.body}
+                  </p>
+                )}
+                <div className="post-actions" style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => likePost(post.id)}>
+                    👍 Like ({post.likes})
+                  </button>
+                  <button
+                    onClick={() => deletePost(post.id)}
+                    style={{ color: '#d9534f', cursor: 'pointer' }}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+        )}
       </main>
 
       {/* Footer Section */}

@@ -19,10 +19,14 @@ import { createSeedPosts, sanitisePosts } from '../proverbs.js';
 //           → PostProvider
 //
 // PERSISTENCE:
-//   Posts are stored in the browser's IndexedDB (database: "PostsDB",
-//   store: "posts", keyed by userId). On mount, PostProvider loads saved
-//   posts. If none exist, it randomly picks 2 proverbs from a list of 20
-//   as seed posts. Every mutation (add, like) is persisted automatically.
+//   Only real user-created posts are stored in IndexedDB (database:
+//   "PostsDB", store: "posts", keyed by userId).
+//
+// PROVERBS:
+//   Proverbs are ephemeral — randomly picked from 20 pre-defined
+//   proverbs on every mount (page refresh). They are NOT persisted
+//   and NOT counted as posts. They only appear as a placeholder
+//   when the user has no real posts.
 //
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -30,66 +34,37 @@ const PostContext = createContext(undefined);
 
 export function PostProvider({ children }) {
   // ── REAL INTER-PROVIDER DEPENDENCY: UserContext ────────────────────
-  // PostProvider calls useUser() to read the current user's shortName.
-  // This REQUIRES UserProvider to be an ancestor in the tree.
-  // If you move PostProvider outside UserProvider, this line throws:
-  //   "useUser must be used within a UserProvider"
-  //
-  // The shortName is used to auto-tag every new post — callers of
-  // addPost() only need to provide a title, not the author.
-  // ──────────────────────────────────────────────────────────────────
   const user = useUser();
 
   const [posts, setPosts] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
+  // ── EPHEMERAL PROVERBS — random on every mount, never persisted ───
+  // useMemo with [] deps means this runs once per mount (page refresh).
+  // Each refresh picks 2 different random proverbs.
+  const proverbs = useMemo(() => createSeedPosts(user.shortName), [user.shortName]);
+
   // ── LOAD from IndexedDB on mount ──────────────────────────────────
-  // If saved posts exist → restore them.
-  // If not → seed with 2 random proverbs, auto-tagged with user.shortName.
-  // ──────────────────────────────────────────────────────────────────
+  // Only real user-created posts are loaded. Proverbs with isProverb
+  // flag from old data are stripped out during load.
   useEffect(() => {
     let cancelled = false;
 
-    // CALLER ERROR HANDLING for Promises that can reject:
-    //   loadPosts() can reject (via reject(request.error) in postsDB.js)
-    //   — e.g., IndexedDB blocked, quota exceeded, or private browsing.
-    //   The caller MUST handle the rejection. Two equivalent ways:
-    //
-    //   Option A: .catch() on the Promise chain  ← used here
-    //     loadPosts(userId)
-    //       .then(saved => { ... })
-    //       .catch(err => console.error(err));
-    //
-    //   Option B: try/catch around await
-    //     try {
-    //       const saved = await loadPosts(userId);
-    //       ...
-    //     } catch (err) {
-    //       console.error(err);
-    //     }
-    //
-    //   Both do the same thing. We use Option A because useEffect
-    //   callbacks cannot be async (React ignores the returned Promise),
-    //   so `await` is not available directly inside useEffect.
-    //   Without .catch(), a rejected Promise is silently swallowed —
-    //   no error in the console, no feedback, just a broken UI.
     loadPosts(user.id)
       .then(saved => {
         if (cancelled) return;
         if (saved && saved.length > 0) {
-          // Sanitise corrupted data from earlier bug
-          setPosts(sanitisePosts(saved));
-        } else {
-          // No saved posts — seed with 2 random proverbs
-          setPosts(createSeedPosts(user.shortName));
+          // Sanitise corrupted data, then strip out old proverbs
+          const sanitised = sanitisePosts(saved);
+          setPosts(sanitised.filter(p => !p.isProverb));
         }
+        // If no saved posts → posts stays [] (proverbs shown instead)
         setLoaded(true);
       })
       .catch(err => {
-        // IndexedDB failed — fall back to seed proverbs
         console.error('Failed to load posts from IndexedDB:', err);
         if (cancelled) return;
-        setPosts(createSeedPosts(user.shortName));
+        // IndexedDB failed — posts stays empty, proverbs shown
         setLoaded(true);
       });
 
@@ -97,7 +72,6 @@ export function PostProvider({ children }) {
   }, [user.id, user.shortName]);
 
   // ── PERSIST to IndexedDB on every change (after initial load) ─────
-  // Same pattern as loadPosts above: .catch() to handle rejection.
   useEffect(() => {
     if (loaded) {
       savePosts(user.id, posts).catch(err => {
@@ -109,7 +83,7 @@ export function PostProvider({ children }) {
   // addPost takes `title` and optional `body` — author is auto-tagged from UserContext.
   const addPost = useCallback((title, body = '') => {
     setPosts(prev => [...prev, {
-      id: Date.now(),   // unique id based on timestamp
+      id: Date.now(),
       title,
       body,
       author: user.shortName,
@@ -125,12 +99,13 @@ export function PostProvider({ children }) {
     );
   }, []);
 
-  // true when at least one post is user-created (not a seed proverb)
-  const hasUserPosts = posts.some(p => !p.isProverb);
+  const deletePost = useCallback((postId) => {
+    setPosts(prev => prev.filter(post => post.id !== postId));
+  }, []);
 
   const value = useMemo(
-    () => ({ posts, addPost, likePost, hasUserPosts }),
-    [posts, addPost, likePost, hasUserPosts]
+    () => ({ posts, proverbs, addPost, likePost, deletePost }),
+    [posts, proverbs, addPost, likePost, deletePost]
   );
 
   return (

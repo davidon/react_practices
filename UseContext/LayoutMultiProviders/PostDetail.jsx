@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../UserContext.jsx';
 import { useTheme, themeStyles } from '../ThemeContext.jsx';
 import { useApp } from '../AppContext.jsx';
@@ -23,8 +23,9 @@ function PostDetail() {
   const user = useUser();
   const { theme } = useTheme();
   const { companyName } = useApp();
-  const { posts, likePost } = usePosts();
+  const { posts, likePost, deletePost } = usePosts();
   const styles = themeStyles[theme];
+  const navigate = useNavigate();
 
   const post = posts.find(p => String(p.id) === postId);
 
@@ -59,9 +60,15 @@ function PostDetail() {
           {post.body || <em style={{ opacity: 0.5 }}>No content.</em>}
         </div>
 
-        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(128,128,128,0.3)' }}>
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(128,128,128,0.3)', display: 'flex', gap: 8 }}>
           <button onClick={() => likePost(post.id)} style={{ cursor: 'pointer', fontSize: 14 }}>
             👍 Like ({post.likes})
+          </button>
+          <button
+            onClick={() => { deletePost(post.id); navigate(backLink); }}
+            style={{ cursor: 'pointer', fontSize: 14, color: '#d9534f' }}
+          >
+            🗑️ Delete
           </button>
         </div>
       </article>

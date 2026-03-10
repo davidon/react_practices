@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './AppContext.jsx';
 import { USERS } from './users.js';
 import { loadPosts, savePosts } from './LayoutMultiProviders/postsDB.js';
-import { createSeedPosts, sanitisePosts } from './proverbs.js';
+import { sanitisePosts } from './proverbs.js';
 
 /**
  * App — SUMMARY PAGE
@@ -14,6 +14,9 @@ import { createSeedPosts, sanitisePosts } from './proverbs.js';
  * - User names are clickable → overlay popup with user details
  * - Post titles link to: LayoutMultiProviders/index.html#/user/:userId/post/:postId
  * - When a user has no posts → shows an input box to add a quick post
+ *
+ * NOTE: Proverbs are NOT shown on the summary page. They are ephemeral
+ * placeholders only visible on the detail page when a user has no real posts.
  */
 export default function App() {
   return (
@@ -73,26 +76,19 @@ function UserSummaryCard({ user, onUserClick }) {
   const detailBase = 'LayoutMultiProviders/index.html#';
 
   // Load posts from IndexedDB — same DB the detail page uses.
-  // If no posts exist, seed with random proverbs (same as detail page).
+  // Only real user-created posts are shown; proverbs are stripped out.
   useEffect(() => {
     loadPosts(user.id)
       .then(saved => {
         if (saved && saved.length > 0) {
-          setPosts(sanitisePosts(saved));
-        } else {
-          // No saved posts — seed proverbs and persist so detail page sees them
-          const seeds = createSeedPosts(user.shortName);
-          setPosts(seeds);
-          savePosts(user.id, seeds).catch(err => {
-            console.error(`Failed to save seed posts for user ${user.id}:`, err);
-          });
+          const sanitised = sanitisePosts(saved);
+          setPosts(sanitised.filter(p => !p.isProverb));
         }
+        // If no saved posts → posts stays [] (show quick-add input)
         setLoaded(true);
       })
       .catch(err => {
         console.error(`Failed to load posts for user ${user.id}:`, err);
-        // Fall back to seed proverbs in memory (won't persist)
-        setPosts(createSeedPosts(user.shortName));
         setLoaded(true);
       });
   }, [user.id, user.shortName]);
