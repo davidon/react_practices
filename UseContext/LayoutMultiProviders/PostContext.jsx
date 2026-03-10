@@ -156,8 +156,8 @@ export function PostProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ posts, proverbs, addPost, likePost, deletePost }),
-    [posts, proverbs, addPost, likePost, deletePost]
+    () => ({ posts, proverbs, loaded, addPost, likePost, deletePost }),
+    [posts, proverbs, loaded, addPost, likePost, deletePost]
   );
 
   return (

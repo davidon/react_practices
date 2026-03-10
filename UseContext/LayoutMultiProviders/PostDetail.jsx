@@ -45,7 +45,7 @@ function PostDetail() {
   const user = useUser();
   const { theme } = useTheme();
   const { companyName } = useApp();
-  const { posts, likePost, deletePost } = usePosts();
+  const { posts, loaded, likePost, deletePost } = usePosts();
   const { loggedInUser } = useLogin();
   const styles = themeStyles[theme];
   const navigate = useNavigate();
@@ -57,6 +57,15 @@ function PostDetail() {
 
   // Back link goes to this user's list view, not the root "/"
   const backLink = `/user/${user.id}`;
+
+  // Show loading while posts are being fetched from cloud/IndexedDB
+  if (!loaded) {
+    return (
+      <div style={{ ...styles, padding: '2rem', textAlign: 'center' }}>
+        <p style={{ fontSize: 14, opacity: 0.6 }}>Loading post…</p>
+      </div>
+    );
+  }
 
   if (!post) {
     return (
