@@ -280,8 +280,29 @@ function UserSummaryCard({ user, loggedInUser, onUserClick }) {
           {posts.length > 0 ? (
             <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
               {posts.map((post) => (
-                <li key={post.id} style={{ padding: '4px 0', fontSize: 14 }}>
-                  {post.title}
+                <li key={post.id} style={{
+                  padding: '8px 0',
+                  borderBottom: '1px solid rgba(128,128,128,0.15)',
+                }}>
+                  <Link
+                    to={`/user/${user.id}/post/${post.id}`}
+                    style={{ color: '#4a90d9', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}
+                  >
+                    {post.title}
+                  </Link>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                    by {post.author}
+                    {(post.likedBy || []).length > 0 && (
+                      <span style={{ marginLeft: 8 }}>
+                        👍 {(post.likedBy || []).length}
+                      </span>
+                    )}
+                  </div>
+                  {post.body && (
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: '#999' }}>
+                      {post.body.length > 80 ? post.body.slice(0, 80) + '…' : post.body}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
