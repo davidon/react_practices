@@ -240,10 +240,29 @@ function SummaryDashboard() {
 
 /**
  * UserSidebar — floating vertical bar at top-left with "USERS" label.
- * Click the triangle to expand and see all users. Click a user to jump.
+ * Click the triangle to expand and see all users grouped by first letter.
+ * Each letter group has a +/- button to collapse/expand.
+ * Click a user to jump to their page.
  */
 function UserSidebar({ users, onSelectUser }) {
   const [expanded, setExpanded] = useState(false);
+
+  // Group users by first letter of fullName
+  const grouped = users.reduce((acc, u) => {
+    const letter = u.fullName[0].toUpperCase();
+    if (!acc[letter]) acc[letter] = [];
+    acc[letter].push(u);
+    return acc;
+  }, {});
+  const sortedLetters = Object.keys(grouped).sort();
+
+  // Track which letter groups are expanded (all open by default)
+  const [openGroups, setOpenGroups] = useState(() =>
+    Object.fromEntries(sortedLetters.map(l => [l, true]))
+  );
+  const toggleGroup = (letter) => {
+    setOpenGroups(prev => ({ ...prev, [letter]: !prev[letter] }));
+  };
 
   return (
     <div style={{
@@ -293,34 +312,76 @@ function UserSidebar({ users, onSelectUser }) {
         </span>
       </div>
 
-      {/* Expanded panel — user list */}
+      {/* Expanded panel — users grouped by first letter */}
       {expanded && (
         <div style={{
           background: '#fff',
           border: '1px solid #ccc',
           borderRadius: '0 8px 8px 0',
           boxShadow: '2px 2px 12px rgba(0,0,0,0.12)',
-          padding: '8px 0',
-          minWidth: 160,
+          padding: '4px 0',
+          minWidth: 180,
           maxHeight: '80vh',
           overflowY: 'auto',
         }}>
-          {users.map(u => (
-            <div
-              key={u.id}
-              onClick={() => { onSelectUser(u.id); setExpanded(false); }}
-              style={{
-                padding: '8px 16px',
-                cursor: 'pointer',
-                fontSize: 13,
-                borderBottom: '1px solid #f0f0f0',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = '#eef4fc'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <div style={{ fontWeight: 500, color: '#333' }}>{u.fullName}</div>
-              <div style={{ fontSize: 11, color: '#999' }}>{u.team} · {u.title}</div>
+          {sortedLetters.map(letter => (
+            <div key={letter}>
+              {/* Letter group header with +/- toggle */}
+              <div
+                onClick={() => toggleGroup(letter)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  background: '#f5f7fa',
+                  borderBottom: '1px solid #e8e8e8',
+                  userSelect: 'none',
+                }}
+              >
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 18,
+                  height: 18,
+                  borderRadius: 3,
+                  border: '1px solid #bbb',
+                  fontSize: 13,
+                  fontWeight: 'bold',
+                  color: '#555',
+                  lineHeight: 1,
+                }}>
+                  {openGroups[letter] ? '−' : '+'}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 'bold', color: '#4a90d9' }}>
+                  {letter}
+                </span>
+                <span style={{ fontSize: 11, color: '#aaa', marginLeft: 'auto' }}>
+                  {grouped[letter].length}
+                </span>
+              </div>
+
+              {/* Users in this group — shown when group is open */}
+              {openGroups[letter] && grouped[letter].map(u => (
+                <div
+                  key={u.id}
+                  onClick={() => { onSelectUser(u.id); setExpanded(false); }}
+                  style={{
+                    padding: '6px 16px 6px 28px',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    borderBottom: '1px solid #f0f0f0',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#eef4fc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{ fontWeight: 500, color: '#333' }}>{u.fullName}</div>
+                  <div style={{ fontSize: 11, color: '#999' }}>{u.team} · {u.title}</div>
+                </div>
+              ))}
             </div>
           ))}
         </div>
