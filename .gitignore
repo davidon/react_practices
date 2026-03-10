@@ -1,2 +1,4 @@
 node_modules
 dist
+COMMIT_MSG.txt
+**/COMMIT_MSG.md
