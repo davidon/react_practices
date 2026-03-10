@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Link, useParams } from 'react-router-dom';
 import { AppProvider, useApp } from './AppContext.jsx';
 import { LoginProvider, useLogin } from './LoginContext.jsx';
@@ -8,7 +8,7 @@ import { PostProvider } from './LayoutMultiProviders/PostContext.jsx';
 import LoginBar from './LoginBar.jsx';
 import { USERS } from './users.js';
 import { loadPosts, savePosts } from './LayoutMultiProviders/postsDB.js';
-import { sanitisePosts } from './proverbs.js';
+import { sanitisePosts, PROVERBS } from './proverbs.js';
 import UserPosts from './LayoutMultiProviders/UserPosts.jsx';
 import PostDetail from './LayoutMultiProviders/PostDetail.jsx';
 
@@ -160,6 +160,12 @@ function UserSummaryCard({ user, loggedInUser, onUserClick }) {
   const [loaded, setLoaded] = useState(false);
   const [quickTitle, setQuickTitle] = useState('');
 
+  // A random proverb for the disabled input placeholder — different per user
+  const placeholderProverb = useMemo(
+    () => PROVERBS[user.id % PROVERBS.length].title,
+    [user.id]
+  );
+
 
   // Can this logged-in user add posts to this card?
   // loggedInUser is a fullName (e.g., "Alex Johnson"), compare against user.fullName.
@@ -245,7 +251,7 @@ function UserSummaryCard({ user, loggedInUser, onUserClick }) {
               <input
                 value={quickTitle}
                 onChange={(e) => setQuickTitle(e.target.value)}
-                placeholder="Post title…"
+                placeholder={isOwner ? 'Post title…' : `💡 ${placeholderProverb}`}
                 disabled={!isOwner}
                 onKeyDown={(e) => e.key === 'Enter' && isOwner && handleQuickAdd()}
                 style={{ flex: 1, padding: '4px 8px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc' }}
@@ -267,20 +273,14 @@ function UserSummaryCard({ user, loggedInUser, onUserClick }) {
         </>
       )}
 
-      {/* ALL POSTS link — SPA route, disabled when user has no posts */}
+      {/* Link to detail page — shows "ALL POSTS →" or "MY PROVERBS →" */}
       <div style={{ marginTop: 12 }}>
-        {posts.length > 0 ? (
-          <Link
-            to={`/user/${user.id}`}
-            style={{ color: '#4a90d9', textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}
-          >
-            ALL POSTS →
-          </Link>
-        ) : (
-          <span style={{ color: '#999', fontSize: 13, fontWeight: 'bold', cursor: 'default' }}>
-            ALL POSTS →
-          </span>
-        )}
+        <Link
+          to={`/user/${user.id}`}
+          style={{ color: '#4a90d9', textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}
+        >
+          {posts.length > 0 ? 'ALL POSTS →' : 'MY PROVERBS →'}
+        </Link>
       </div>
     </section>
   );
