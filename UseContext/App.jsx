@@ -1,33 +1,64 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, Link, useParams } from 'react-router-dom';
 import { AppProvider, useApp } from './AppContext.jsx';
 import { LoginProvider, useLogin } from './LoginContext.jsx';
+import { ThemeProvider } from './ThemeContext.jsx';
+import { UserProvider } from './UserContext.jsx';
+import { PostProvider } from './LayoutMultiProviders/PostContext.jsx';
 import LoginBar from './LoginBar.jsx';
 import { USERS } from './users.js';
 import { loadPosts, savePosts } from './LayoutMultiProviders/postsDB.js';
 import { sanitisePosts } from './proverbs.js';
+import UserPosts from './LayoutMultiProviders/UserPosts.jsx';
+import PostDetail from './LayoutMultiProviders/PostDetail.jsx';
 
 /**
- * App — SUMMARY PAGE
+ * App — SINGLE PAGE APPLICATION
  *
- * Displays all users and their post titles in a compact overview.
- * Posts are loaded from IndexedDB — the SAME data source as the detail page,
- * so post IDs are always consistent between summary and detail views.
+ * All routes served from UseContext/index.html via HashRouter:
+ *   /                           → Summary dashboard (all users overview)
+ *   /user/:userId               → User's posts list (detail page)
+ *   /user/:userId/post/:postId  → Single post detail view
  *
- * - User names are clickable → overlay popup with user details
- * - Post titles link to: LayoutMultiProviders/index.html#/user/:userId/post/:postId
- * - Login form (username + password + button) lives here only
- * - Logged-in user info shown via shared LoginBar component
- * - Quick-add post only enabled when logged-in user matches the card user
- *
- * NOTE: Proverbs are NOT shown on the summary page.
+ * Replaces the old two-HTML-file setup where the summary page linked
+ * to LayoutMultiProviders/index.html via static <a href> links.
+ * Now everything is SPA-routed with <Link> components.
  */
 export default function App() {
   return (
     <LoginProvider>
       <AppProvider>
-        <SummaryDashboard />
+        <Routes>
+          <Route path="/" element={<SummaryDashboard />} />
+          <Route path="/user/:userId" element={<UserPage />} />
+          <Route path="/user/:userId/post/:postId" element={<UserPage />} />
+        </Routes>
       </AppProvider>
     </LoginProvider>
+  );
+}
+
+/**
+ * UserPage — reads :userId from URL and wraps the correct user in providers.
+ *
+ * Renders the provider chain:
+ *   ThemeProvider → UserProvider → PostProvider → UserPosts or PostDetail
+ */
+function UserPage() {
+  const { userId, postId } = useParams();
+
+  const user = userId
+    ? USERS.find(u => String(u.id) === userId) || USERS[0]
+    : USERS[0];
+
+  return (
+    <ThemeProvider userId={user.id}>
+      <UserProvider user={user}>
+        <PostProvider>
+          {postId ? <PostDetail /> : <UserPosts />}
+        </PostProvider>
+      </UserProvider>
+    </ThemeProvider>
   );
 }
 
@@ -129,7 +160,6 @@ function UserSummaryCard({ user, loggedInUser, onUserClick }) {
   const [loaded, setLoaded] = useState(false);
   const [quickTitle, setQuickTitle] = useState('');
 
-  const detailBase = 'LayoutMultiProviders/index.html#';
 
   // Can this logged-in user add posts to this card?
   // loggedInUser is a fullName (e.g., "Alex Johnson"), compare against user.fullName.
@@ -237,15 +267,15 @@ function UserSummaryCard({ user, loggedInUser, onUserClick }) {
         </>
       )}
 
-      {/* ALL POSTS link — disabled when user has no posts */}
+      {/* ALL POSTS link — SPA route, disabled when user has no posts */}
       <div style={{ marginTop: 12 }}>
         {posts.length > 0 ? (
-          <a
-            href={`${detailBase}/user/${user.id}`}
+          <Link
+            to={`/user/${user.id}`}
             style={{ color: '#4a90d9', textDecoration: 'none', fontSize: 13, fontWeight: 'bold' }}
           >
             ALL POSTS →
-          </a>
+          </Link>
         ) : (
           <span style={{ color: '#999', fontSize: 13, fontWeight: 'bold', cursor: 'default' }}>
             ALL POSTS →

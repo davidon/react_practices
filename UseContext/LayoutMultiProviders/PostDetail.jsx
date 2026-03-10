@@ -68,7 +68,11 @@ function PostDetail() {
   return (
     <div style={{ ...styles, padding: '1.5rem', border: '2px solid currentColor', transition: 'background 0.3s, color 0.3s', maxWidth: 700 }}>
       <header style={{ marginBottom: '1rem' }}>
-        <Link to={backLink} style={{ color: '#4a90d9', textDecoration: 'none', fontSize: 14 }}>← Back to {user.fullName}'s posts</Link>
+        <div style={{ display: 'flex', gap: 12, fontSize: 14 }}>
+          <Link to="/" style={{ color: '#4a90d9', textDecoration: 'none' }}>← Summary</Link>
+          <span style={{ opacity: 0.4 }}>|</span>
+          <Link to={backLink} style={{ color: '#4a90d9', textDecoration: 'none' }}>← {user.fullName}'s posts</Link>
+        </div>
         <p style={{ fontSize: 12, opacity: 0.7, margin: '8px 0 4px' }}>{companyName}</p>
         <ThemeButton />
       </header>

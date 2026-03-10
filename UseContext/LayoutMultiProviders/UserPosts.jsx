@@ -79,6 +79,7 @@ function UserPosts() {
     <div style={{ ...styles, padding: '1rem', border: '2px solid currentColor', transition: 'background 0.3s, color 0.3s' }}>
       {/* Header Section */}
       <header className="layout-header">
+        <Link to="/" style={{ color: '#4a90d9', textDecoration: 'none', fontSize: 14 }}>← Back to Summary</Link>
         <h1>Welcome, {user.fullName}!</h1>
         <p style={{ fontSize: 12, opacity: 0.7 }}>{companyName}</p>
         <ThemeButton />
