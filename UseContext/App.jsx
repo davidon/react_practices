@@ -239,14 +239,27 @@ function SummaryDashboard() {
 }
 
 /**
+/**
  * UserSidebar — floating vertical bar at top-left with "USERS" label.
- * Click the triangle to expand and see all users grouped by first letter.
- * Each letter group has a +/- button to collapse/expand.
- * Click a user to jump to their page.
+ * Click the triangle to expand and see all users.
+ * If viewport is too short to fit all users, groups them by first letter
+ * with collapsible +/- categories (default collapsed).
+ * When tall enough, shows a flat list.
  */
 function UserSidebar({ users, onSelectUser }) {
   const [expanded, setExpanded] = useState(false);
-
+  // Estimate if all users fit: ~44px per user row + 16px padding
+  const ROW_HEIGHT = 44;
+  const PANEL_PADDING = 16;
+  const [needsCategories, setNeedsCategories] = useState(
+    () => window.innerHeight < users.length * ROW_HEIGHT + PANEL_PADDING + 100
+  );
+  useEffect(() => {
+    const check = () =>
+      setNeedsCategories(window.innerHeight < users.length * ROW_HEIGHT + PANEL_PADDING + 100);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [users.length]);
   // Group users by first letter of fullName
   const grouped = users.reduce((acc, u) => {
     const letter = u.fullName[0].toUpperCase();
@@ -255,15 +268,11 @@ function UserSidebar({ users, onSelectUser }) {
     return acc;
   }, {});
   const sortedLetters = Object.keys(grouped).sort();
-
-  // Track which letter groups are expanded (all open by default)
-  const [openGroups, setOpenGroups] = useState(() =>
-    Object.fromEntries(sortedLetters.map(l => [l, true]))
-  );
+  // Track which letter groups are open — all CLOSED by default
+  const [openGroups, setOpenGroups] = useState({});
   const toggleGroup = (letter) => {
     setOpenGroups(prev => ({ ...prev, [letter]: !prev[letter] }));
   };
-
   return (
     <div style={{
       position: 'fixed',
@@ -311,8 +320,7 @@ function UserSidebar({ users, onSelectUser }) {
           ▶
         </span>
       </div>
-
-      {/* Expanded panel — users grouped by first letter */}
+      {/* Expanded panel */}
       {expanded && (
         <div style={{
           background: '#fff',
@@ -324,73 +332,80 @@ function UserSidebar({ users, onSelectUser }) {
           maxHeight: '80vh',
           overflowY: 'auto',
         }}>
-          {sortedLetters.map(letter => (
-            <div key={letter}>
-              {/* Letter group header with +/- toggle */}
-              <div
-                onClick={() => toggleGroup(letter)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 12px',
-                  cursor: 'pointer',
-                  background: '#f5f7fa',
-                  borderBottom: '1px solid #e8e8e8',
-                  userSelect: 'none',
-                }}
-              >
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 18,
-                  height: 18,
-                  borderRadius: 3,
-                  border: '1px solid #bbb',
-                  fontSize: 13,
-                  fontWeight: 'bold',
-                  color: '#555',
-                  lineHeight: 1,
-                }}>
-                  {openGroups[letter] ? '−' : '+'}
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 'bold', color: '#4a90d9' }}>
-                  {letter}
-                </span>
-                <span style={{ fontSize: 11, color: '#aaa', marginLeft: 'auto' }}>
-                  {grouped[letter].length}
-                </span>
-              </div>
-
-              {/* Users in this group — shown when group is open */}
-              {openGroups[letter] && grouped[letter].map(u => (
+          {needsCategories ? (
+            /* ── Categorised view: grouped by first letter, collapsed ── */
+            sortedLetters.map(letter => (
+              <div key={letter}>
+                {/* Letter header with +/- */}
                 <div
-                  key={u.id}
-                  onClick={() => { onSelectUser(u.id); setExpanded(false); }}
+                  onClick={() => toggleGroup(letter)}
                   style={{
-                    padding: '6px 16px 6px 28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
                     cursor: 'pointer',
-                    fontSize: 13,
-                    borderBottom: '1px solid #f0f0f0',
-                    transition: 'background 0.15s',
+                    background: '#f5f7fa',
+                    borderBottom: '1px solid #e8e8e8',
+                    userSelect: 'none',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#eef4fc'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div style={{ fontWeight: 500, color: '#333' }}>{u.fullName}</div>
-                  <div style={{ fontSize: 11, color: '#999' }}>{u.team} · {u.title}</div>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 18, height: 18,
+                    borderRadius: 3,
+                    border: '1px solid #bbb',
+                    fontSize: 13, fontWeight: 'bold',
+                    color: '#555', lineHeight: 1,
+                  }}>
+                    {openGroups[letter] ? '−' : '+'}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 'bold', color: '#4a90d9' }}>
+                    {letter}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#aaa', marginLeft: 'auto' }}>
+                    {grouped[letter].length}
+                  </span>
                 </div>
-              ))}
-            </div>
-          ))}
+                {/* Users — only when group is open */}
+                {openGroups[letter] && grouped[letter].map(u => (
+                  <UserSidebarItem key={u.id} user={u} indented onSelect={() => { onSelectUser(u.id); setExpanded(false); }} />
+                ))}
+              </div>
+            ))
+          ) : (
+            /* ── Flat list: viewport is tall enough ── */
+            users.map(u => (
+              <UserSidebarItem key={u.id} user={u} onSelect={() => { onSelectUser(u.id); setExpanded(false); }} />
+            ))
+          )}
         </div>
       )}
     </div>
   );
 }
-
-/**
+/** Single user row in the sidebar (reused by both flat and categorised views). */
+function UserSidebarItem({ user, indented, onSelect }) {
+  return (
+    <div
+      onClick={onSelect}
+      style={{
+        padding: indented ? '6px 16px 6px 28px' : '8px 16px',
+        cursor: 'pointer',
+        fontSize: 13,
+        borderBottom: '1px solid #f0f0f0',
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = '#eef4fc'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+    >
+      <div style={{ fontWeight: 500, color: '#333' }}>{user.fullName}</div>
+      <div style={{ fontSize: 11, color: '#999' }}>{user.team} · {user.title}</div>
+    </div>
+  );
+}
  * UserSummaryCard — shows one user's name (clickable) + posts loaded from IndexedDB.
  * If no posts exist, shows a quick-add input box instead of fake data.
  */
