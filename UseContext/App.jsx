@@ -109,7 +109,6 @@ function SummaryDashboard() {
   const jumpToUser = (userId) => {
     const idx = USERS.findIndex(u => u.id === userId);
     if (idx === -1) return;
-    
     setStartIdx(Math.min(idx, maxStart));
   };
 
